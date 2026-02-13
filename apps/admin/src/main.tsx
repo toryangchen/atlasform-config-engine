@@ -221,10 +221,10 @@ function AppLayout() {
       <Header className="admin-header">
         <div className="header-left">
           <div className="brand-dot" />
-          <Typography.Text className="brand-title">Proto Console</Typography.Text>
+          <Typography.Text className="brand-title">AtlasForm Config Engine</Typography.Text>
           <Tag className="brand-tag">V1</Tag>
         </div>
-        <Typography.Text className="header-caption">Multi-App Lowcode Admin</Typography.Text>
+        <Typography.Text className="header-caption">Multi-App Config Console</Typography.Text>
       </Header>
       <Content className="admin-content">
         <div className="content-wrap">

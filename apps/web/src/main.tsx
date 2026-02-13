@@ -164,7 +164,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <RuntimeProvider tenantId="demo-tenant" pluginManager={pluginManager}>
       <ConfigProvider>
         <div style={{ maxWidth: 680, margin: "40px auto", padding: 16 }}>
-          <h1>Proto-Driven Lowcode Runtime</h1>
+          <h1>AtlasForm Config Engine Runtime</h1>
           <FormRenderer schema={runtimeSchema} />
         </div>
       </ConfigProvider>

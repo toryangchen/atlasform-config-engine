@@ -1,6 +1,6 @@
-# lowcode-platform (V1)
+# AtlasForm Config Engine (V1)
 
-Proto 驱动的配置化低代码系统（非拖拽），面向可长期产品化演进（3-5 年）的 SaaS 基础平台。
+AtlasForm Config Engine 是一个 Proto 驱动的配置化低代码系统（非拖拽），面向可长期产品化演进（3-5 年）的 SaaS 基础平台。
 
 ## 1. V1 交付范围
 
