@@ -4,3 +4,6 @@ node_modules
 dist
 coverage
 .env
+
+.mongo-data
+.mongo-log
