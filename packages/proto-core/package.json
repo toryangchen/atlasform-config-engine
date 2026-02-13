@@ -1,0 +1,18 @@
+{
+  "name": "@lowcode/proto-core",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "proto:gen": "bash ./scripts/gen.sh",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'lint reserved for proto-core'"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.11.0"
+  },
+  "devDependencies": {
+    "ts-proto": "^2.6.1",
+    "typescript": "^5.7.3"
+  }
+}

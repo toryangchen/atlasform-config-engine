@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package lowcode.profile;
+
+message ValidationRule {
+  string type = 1;   // required, min, max, pattern
+  string value = 2;
+}
+
+message Field {
+  string name = 1;
+  string label = 2;
+  string type = 3;   // string | number | select | checkbox | object | array | array<object>
+  bool required = 4;
+  repeated string options = 5;
+  repeated ValidationRule rules = 6;
+
+  // for array field
+  string item_type = 7; // string | number | boolean | object
+
+  // nested object definition (supports multi-level nesting)
+  repeated Field object_fields = 8;
+
+  // for array<object>, define item object fields
+  repeated Field item_object_fields = 9;
+}
+
+message FormSchema {
+  string app_id = 1;      // proto filename == appId convention
+  string form_name = 2;
+  string version = 3;
+  repeated Field fields = 4;
+}
+
+// Example: deeply nested object schema
+message ProfileFormPreset {
+  FormSchema schema = 1;
+}

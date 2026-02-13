@@ -1,0 +1,30 @@
+{
+  "name": "@lowcode/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'lint reserved for admin'"
+  },
+  "dependencies": {
+    "antd": "^5.24.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.8.2",
+    "@lowcode/component-registry": "workspace:*",
+    "@lowcode/form-engine": "workspace:*",
+    "@lowcode/schema-runtime": "workspace:*",
+    "@lowcode/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
+  }
+}

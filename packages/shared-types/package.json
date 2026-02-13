@@ -1,0 +1,36 @@
+{
+  "name": "@lowcode/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./generated/form": {
+      "types": "./src/generated/form.ts",
+      "default": "./src/generated/form.ts"
+    },
+    "./domain/form-domain": {
+      "types": "./src/domain/form-domain.ts",
+      "default": "./src/domain/form-domain.ts"
+    },
+    "./runtime/ui-schema": {
+      "types": "./src/runtime/ui-schema.ts",
+      "default": "./src/runtime/ui-schema.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'lint reserved for shared-types'"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.11.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

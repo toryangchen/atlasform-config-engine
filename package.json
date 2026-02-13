@@ -1,0 +1,21 @@
+{
+  "name": "lowcode-platform",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.4.1",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "proto:gen": "pnpm --filter @lowcode/proto-core proto:gen",
+    "migrate:form-fields:dry": "node ./infra/scripts/migrate-form-schema-fields.mjs",
+    "migrate:form-fields:apply": "node ./infra/scripts/migrate-form-schema-fields.mjs --apply"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "mongoose": "^8.12.1",
+    "turbo": "^2.4.2",
+    "typescript": "^5.7.3"
+  }
+}
