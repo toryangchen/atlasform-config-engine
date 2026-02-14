@@ -23,7 +23,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { componentRegistry } from "@lowcode/component-registry";
-import { FormRenderer, ObjectDrawerField } from "@lowcode/form-engine";
+import { ArrayObjectTableField, ArrayStringTableField, FormRenderer, ObjectDrawerField } from "@lowcode/form-engine";
 import { domainToRuntime } from "@lowcode/schema-runtime";
 import type { DomainFieldSchema, DomainFormSchema, RuntimeFormSchema } from "@lowcode/shared-types";
 import "antd/dist/reset.css";
@@ -58,42 +58,14 @@ const { Header, Content } = Layout;
 const API_BASE = "http://localhost:3000";
 const TENANT = "demo-tenant";
 
-const StringArrayField: React.FC<{ value?: string[]; onChange?: (value: string[]) => void }> = ({ value, onChange }) => (
-  <Select mode="tags" style={{ width: "100%" }} value={value ?? []} onChange={(v) => onChange?.(v)} />
-);
-
-const JsonArrayObjectField: React.FC<{
-  value?: Array<Record<string, unknown>>;
-  onChange?: (value: Array<Record<string, unknown>>) => void;
-}> = ({ value, onChange }) => {
-  const [text, setText] = React.useState(JSON.stringify(value ?? [], null, 2));
-  return (
-    <Input.TextArea
-      autoSize={{ minRows: 6, maxRows: 14 }}
-      value={text}
-      onChange={(e) => {
-        const next = e.target.value;
-        setText(next);
-        try {
-          const parsed = JSON.parse(next || "[]");
-          if (!Array.isArray(parsed) || parsed.some((item) => !item || typeof item !== "object" || Array.isArray(item))) return;
-          onChange?.(parsed as Array<Record<string, unknown>>);
-        } catch {
-          return;
-        }
-      }}
-    />
-  );
-};
-
 componentRegistry.registerComponent("string", Input);
 componentRegistry.registerComponent("number", InputNumber);
 componentRegistry.registerComponent("select", Select);
 componentRegistry.registerComponent("checkbox", Checkbox);
 componentRegistry.registerComponent("checkbox-group", Checkbox.Group);
 componentRegistry.registerComponent("object", ObjectDrawerField);
-componentRegistry.registerComponent("array", StringArrayField);
-componentRegistry.registerComponent("array<object>", JsonArrayObjectField);
+componentRegistry.registerComponent("array", ArrayStringTableField);
+componentRegistry.registerComponent("array<object>", ArrayObjectTableField);
 
 function parseDomainField(raw: Record<string, unknown>): DomainFieldSchema | null {
   const key = typeof raw.key === "string" ? raw.key : typeof raw.name === "string" ? raw.name : null;

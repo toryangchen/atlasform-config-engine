@@ -3,12 +3,11 @@ import ReactDOM from "react-dom/client";
 import { Checkbox, ConfigProvider, Input, InputNumber, Select } from "antd";
 import "antd/dist/reset.css";
 import { componentRegistry } from "@lowcode/component-registry";
-import { FormRenderer, ObjectDrawerField } from "@lowcode/form-engine";
+import { ArrayObjectTableField, ArrayStringTableField, FormRenderer, ObjectDrawerField } from "@lowcode/form-engine";
 import { PluginManager, auditPlugin } from "@lowcode/plugin-system";
 import { domainToRuntime } from "@lowcode/schema-runtime";
 import type { DomainFormSchema } from "@lowcode/shared-types";
 import { RuntimeProvider } from "./lowcode/runtime-context";
-import { JsonArrayObjectField, StringArrayField } from "./lowcode/advanced-fields";
 
 componentRegistry.registerComponent("string", Input);
 componentRegistry.registerComponent("number", InputNumber);
@@ -16,8 +15,8 @@ componentRegistry.registerComponent("select", Select);
 componentRegistry.registerComponent("checkbox", Checkbox);
 componentRegistry.registerComponent("checkbox-group", Checkbox.Group);
 componentRegistry.registerComponent("object", ObjectDrawerField);
-componentRegistry.registerComponent("array", StringArrayField);
-componentRegistry.registerComponent("array<object>", JsonArrayObjectField);
+componentRegistry.registerComponent("array", ArrayStringTableField);
+componentRegistry.registerComponent("array<object>", ArrayObjectTableField);
 
 const pluginManager = new PluginManager();
 pluginManager.use(auditPlugin);

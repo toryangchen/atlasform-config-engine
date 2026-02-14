@@ -52,3 +52,5 @@ export const FormRenderer: React.FC<FormRendererProps> = ({ schema, form: extern
 };
 
 export { ObjectDrawerField } from "./object-drawer-field";
+export { ArrayStringTableField } from "./array-string-table-field";
+export { ArrayObjectTableField } from "./array-object-table-field";
