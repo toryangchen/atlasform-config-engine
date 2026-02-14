@@ -15,7 +15,7 @@ export function domainToRuntime(input: DomainFormSchema): RuntimeFormSchema {
           objectFields: field.objectFields
         },
         rules: field.rules,
-        ...(field.fieldType === "checkbox" ? { valuePropName: "checked" } : {})
+        ...(field.fieldType === "checkbox" || field.fieldType === "switch" ? { valuePropName: "checked" } : {})
       };
 
       if (!field.visibility?.expr) return base;

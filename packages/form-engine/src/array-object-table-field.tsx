@@ -15,7 +15,18 @@ export const ArrayObjectTableField: React.FC<{
   objectFields?: unknown[];
   label?: string;
 }> = ({ value, onChange, objectFields }) => {
-  const items = value ?? [];
+  const items = React.useMemo<Array<Record<string, unknown>>>(() => {
+    if (Array.isArray(value)) {
+      return value.filter(
+        (item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)
+      );
+    }
+    if (value && typeof value === "object") {
+      // Backward-compat: old `object` payload is migrated to first row of `array<object>`.
+      return [value as Record<string, unknown>];
+    }
+    return [];
+  }, [value]);
   const [innerForm] = Form.useForm();
   const idSeqRef = React.useRef(0);
   const [rowIds, setRowIds] = React.useState<string[]>(() => items.map(() => `obj-row-${idSeqRef.current++}`));
@@ -61,7 +72,7 @@ export const ArrayObjectTableField: React.FC<{
 
   const openNew = () => {
     setEditingIndex(null);
-    innerForm.setFieldsValue({});
+    innerForm.resetFields();
     setOpen(true);
   };
 
@@ -86,6 +97,7 @@ export const ArrayObjectTableField: React.FC<{
       next[editingIndex] = values;
       setItems(next);
     }
+    innerForm.resetFields();
     setOpen(false);
   };
 

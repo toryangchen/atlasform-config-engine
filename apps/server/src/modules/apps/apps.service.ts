@@ -3,6 +3,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { DataService } from "../data/data.service";
 import { FormService } from "../form/form.service";
+import { ProtoFormSyncService } from "./proto-form-sync.service";
 
 export interface AppDefinition {
   appId: string;
@@ -14,7 +15,8 @@ export interface AppDefinition {
 export class AppsService {
   constructor(
     private readonly formService: FormService,
-    private readonly dataService: DataService
+    private readonly dataService: DataService,
+    private readonly protoFormSyncService: ProtoFormSyncService
   ) {}
 
   listApps(): AppDefinition[] {
@@ -29,7 +31,8 @@ export class AppsService {
       });
   }
 
-  listFormsByApp(tenantId: string, appId: string) {
+  async listFormsByApp(tenantId: string, appId: string) {
+    await this.protoFormSyncService.sync(tenantId);
     return this.formService.listByApp(tenantId, appId);
   }
 
@@ -37,7 +40,7 @@ export class AppsService {
     return this.dataService.listByApp(tenantId, appId);
   }
 
-  createDataInApp(tenantId: string, appId: string, input: { formName: string; version: string; data: Record<string, unknown> }) {
+  createDataInApp(tenantId: string, appId: string, input: { formName?: string; data: Record<string, unknown> }) {
     return this.dataService.createInApp(tenantId, appId, input);
   }
 
@@ -45,7 +48,7 @@ export class AppsService {
     tenantId: string,
     appId: string,
     dataId: string,
-    input: { formName?: string; version?: string; data?: Record<string, unknown> }
+    input: { formName?: string; data?: Record<string, unknown> }
   ) {
     return this.dataService.updateById(tenantId, appId, dataId, input);
   }
@@ -71,4 +74,5 @@ export class AppsService {
       .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
       .join(" ");
   }
+
 }

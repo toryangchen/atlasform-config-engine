@@ -5,14 +5,22 @@ import { DataService } from "./data.service";
 export class DataController {
   constructor(private readonly dataService: DataService) {}
 
+  @Post(":formName")
+  createLatest(
+    @Headers("x-tenant-id") tenantId = "demo-tenant",
+    @Param("formName") formName: string,
+    @Body() data: Record<string, unknown>
+  ) {
+    return this.dataService.create(tenantId, formName, data);
+  }
+
   @Post(":formName/:version")
   create(
     @Headers("x-tenant-id") tenantId = "demo-tenant",
     @Param("formName") formName: string,
-    @Param("version") version: string,
     @Body() data: Record<string, unknown>
   ) {
-    return this.dataService.create(tenantId, formName, version, data);
+    return this.dataService.create(tenantId, formName, data);
   }
 
   @Get(":formName")

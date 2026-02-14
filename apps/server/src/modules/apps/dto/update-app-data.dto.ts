@@ -6,10 +6,6 @@ export class UpdateAppDataDto {
   formName?: string;
 
   @IsOptional()
-  @IsString()
-  version?: string;
-
-  @IsOptional()
   @IsObject()
   data?: Record<string, unknown>;
 }

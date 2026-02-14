@@ -12,9 +12,17 @@ export const ObjectDrawerField: React.FC<{
   const [open, setOpen] = React.useState(false);
   const [innerForm] = Form.useForm();
   const nestedFields = React.useMemo(() => parseNestedFields(objectFields), [objectFields]);
+  const normalizedValue = React.useMemo<Record<string, unknown> | undefined>(() => {
+    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    if (Array.isArray(value)) {
+      const first = value.find((item) => item && typeof item === "object" && !Array.isArray(item));
+      if (first && typeof first === "object" && !Array.isArray(first)) return first as Record<string, unknown>;
+    }
+    return undefined;
+  }, [value]);
 
   const openDrawer = () => {
-    innerForm.setFieldsValue(value ?? {});
+    innerForm.setFieldsValue(normalizedValue ?? {});
     setOpen(true);
   };
 
@@ -24,15 +32,15 @@ export const ObjectDrawerField: React.FC<{
     setOpen(false);
   };
 
-  const valueSummary = value ? Object.keys(value).length : 0;
-  const row = React.useMemo(() => ({ key: "0", ...(value ?? {}) }), [value]);
+  const valueSummary = normalizedValue ? Object.keys(normalizedValue).length : 0;
+  const row = React.useMemo(() => ({ key: "0", ...(normalizedValue ?? {}) }), [normalizedValue]);
   const columns = React.useMemo<ColumnsType<Record<string, unknown>>>(() => {
     if (nestedFields.length === 0) {
       return [
         {
           title: "Value",
           key: "value",
-          render: () => formatPreviewValue(value)
+          render: () => formatPreviewValue(normalizedValue)
         }
       ];
     }
@@ -57,7 +65,7 @@ export const ObjectDrawerField: React.FC<{
           size="small"
           rowKey="key"
           columns={columns}
-          dataSource={value ? [row] : []}
+          dataSource={normalizedValue ? [row] : []}
           pagination={false}
           locale={{ emptyText: "No object data yet" }}
         />

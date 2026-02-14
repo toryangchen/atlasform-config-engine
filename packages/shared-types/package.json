@@ -9,9 +9,9 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./generated/form": {
-      "types": "./src/generated/form.ts",
-      "default": "./src/generated/form.ts"
+    "./generated/profile_app": {
+      "types": "./src/generated/profile_app.ts",
+      "default": "./src/generated/profile_app.ts"
     },
     "./domain/form-domain": {
       "types": "./src/domain/form-domain.ts",

@@ -1,11 +1,9 @@
-import { IsObject, IsString } from "class-validator";
+import { IsObject, IsOptional, IsString } from "class-validator";
 
 export class CreateAppDataDto {
+  @IsOptional()
   @IsString()
-  formName!: string;
-
-  @IsString()
-  version!: string;
+  formName?: string;
 
   @IsObject()
   data!: Record<string, unknown>;

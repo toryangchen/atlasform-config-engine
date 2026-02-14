@@ -38,11 +38,7 @@ export class FormController {
   }
 
   @Post(":formName/publish")
-  publish(
-    @Headers("x-tenant-id") tenantId = "demo-tenant",
-    @Param("formName") formName: string,
-    @Body("version") version: string
-  ) {
-    return this.formService.publish(tenantId, formName, version);
+  publish(@Headers("x-tenant-id") tenantId = "demo-tenant", @Param("formName") formName: string) {
+    return this.formService.publish(tenantId, formName);
   }
 }

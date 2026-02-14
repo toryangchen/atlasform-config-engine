@@ -1,77 +1,120 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { InjectConnection } from "@nestjs/mongoose";
+import { Connection, Types } from "mongoose";
 import { FormService } from "../form/form.service";
-import { FormDataEntity } from "./data.schema";
+
+interface AppDataDocument {
+  _id?: Types.ObjectId;
+  tenantId: string;
+  appId: string;
+  formName: string;
+  version: string;
+  data: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 @Injectable()
 export class DataService {
   constructor(
     private readonly formService: FormService,
-    @InjectModel(FormDataEntity.name) private readonly dataModel: Model<FormDataEntity>
+    @InjectConnection() private readonly connection: Connection
   ) {}
 
-  async create(tenantId: string, formName: string, version: string, data: Record<string, unknown>) {
-    const form = await this.formService.getByVersion(tenantId, formName, version);
-    return this.dataModel.create({
-      tenantId,
-      appId: form.appId,
-      formName,
-      version,
-      data
-    });
+  async create(tenantId: string, formName: string, data: Record<string, unknown>) {
+    const form = await this.formService.getLatestPublished(tenantId, formName);
+    return this.createInApp(tenantId, form.appId, { formName, data });
   }
 
-  listByForm(tenantId: string, formName: string) {
-    return this.dataModel.find({ tenantId, formName }).sort({ createdAt: -1 }).lean();
+  async listByForm(tenantId: string, formName: string) {
+    const form = await this.formService.getLatestPublished(tenantId, formName);
+    return this.listByApp(tenantId, form.appId);
   }
 
-  listByApp(tenantId: string, appId: string) {
-    return this.dataModel.find({ tenantId, appId }).sort({ createdAt: -1 }).lean();
+  async listByApp(tenantId: string, appId: string) {
+    const rows = (await this.collection(appId).find({ tenantId }).sort({ createdAt: -1 }).toArray()) as AppDataDocument[];
+    return rows.map((row) => this.toResponse(appId, row));
   }
 
   async createInApp(
     tenantId: string,
     appId: string,
-    input: { formName: string; version: string; data: Record<string, unknown> }
+    input: { formName?: string; data: Record<string, unknown> }
   ) {
-    await this.formService.getByVersionInApp(tenantId, appId, input.formName, input.version);
-    return this.dataModel.create({
+    const form = await this.formService.getCurrentInApp(tenantId, appId, input.formName);
+    const now = new Date();
+    const payload: AppDataDocument = {
       tenantId,
       appId,
-      formName: input.formName,
-      version: input.version,
-      data: input.data
-    });
+      formName: form.formName,
+      version: form.version,
+      data: input.data,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    const result = await this.collection(appId).insertOne(payload);
+    return this.toResponse(appId, { ...payload, _id: result.insertedId });
   }
 
   async updateById(
     tenantId: string,
     appId: string,
     dataId: string,
-    input: { data?: Record<string, unknown>; formName?: string; version?: string }
+    input: { data?: Record<string, unknown>; formName?: string }
   ) {
+    const objectId = this.parseObjectId(dataId);
+    const coll = this.collection(appId);
+    const current = await coll.findOne({ _id: objectId, tenantId });
+    if (!current) throw new NotFoundException("Data not found");
+
     const patch: Record<string, unknown> = {};
     if (input.data) patch.data = input.data;
 
-    if (input.formName || input.version) {
-      const current = await this.dataModel.findOne({ _id: dataId, tenantId, appId }).lean();
-      if (!current) throw new NotFoundException("Data not found");
-      const nextFormName = input.formName ?? current.formName;
-      const nextVersion = input.version ?? current.version;
-      await this.formService.getByVersionInApp(tenantId, appId, nextFormName, nextVersion);
-      patch.formName = nextFormName;
-      patch.version = nextVersion;
+    if (input.formName) {
+      const targetForm = await this.formService.getCurrentInApp(tenantId, appId, input.formName);
+      patch.formName = targetForm.formName;
+      patch.version = targetForm.version;
+    } else if (input.data) {
+      const targetForm = await this.formService.getCurrentInApp(tenantId, appId, current.formName);
+      patch.formName = targetForm.formName;
+      patch.version = targetForm.version;
     }
 
-    const updated = await this.dataModel.findOneAndUpdate({ _id: dataId, tenantId, appId }, { $set: patch }, { new: true }).lean();
+    patch.updatedAt = new Date();
+
+    await coll.updateOne({ _id: objectId, tenantId }, { $set: patch });
+    const updated = await coll.findOne({ _id: objectId, tenantId });
     if (!updated) throw new NotFoundException("Data not found");
-    return updated;
+    return this.toResponse(appId, updated as AppDataDocument);
   }
 
   async removeById(tenantId: string, appId: string, dataId: string) {
-    const deleted = await this.dataModel.findOneAndDelete({ _id: dataId, tenantId, appId }).lean();
-    if (!deleted) throw new NotFoundException("Data not found");
+    const objectId = this.parseObjectId(dataId);
+    const res = await this.collection(appId).deleteOne({ _id: objectId, tenantId });
+    if (res.deletedCount < 1) throw new NotFoundException("Data not found");
     return { deletedId: dataId };
+  }
+
+  private collection(appId: string) {
+    if (!this.connection.db) throw new Error("Mongo connection is not ready");
+    return this.connection.db.collection(appId);
+  }
+
+  private parseObjectId(dataId: string): Types.ObjectId {
+    if (!Types.ObjectId.isValid(dataId)) throw new NotFoundException("Data not found");
+    return new Types.ObjectId(dataId);
+  }
+
+  private toResponse(appId: string, row: AppDataDocument) {
+    return {
+      _id: String(row._id),
+      appId,
+      formName: row.formName,
+      version: row.version,
+      data: row.data,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt
+    };
   }
 }

@@ -7,6 +7,7 @@ OUT_DIR="$ROOT_DIR/packages/proto-core/generated"
 SHARED_DIR="$ROOT_DIR/packages/shared-types/src/generated"
 
 mkdir -p "$OUT_DIR" "$SHARED_DIR"
+rm -f "$OUT_DIR"/*.ts "$SHARED_DIR"/*.ts
 
 if ! command -v protoc >/dev/null 2>&1; then
   echo "protoc not found. Install protobuf compiler first (e.g. brew install protobuf)." >&2

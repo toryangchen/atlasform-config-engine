@@ -2,37 +2,42 @@ syntax = "proto3";
 
 package lowcode.profile;
 
-message ValidationRule {
-  string type = 1;   // required, min, max, pattern
-  string value = 2;
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ENGINEER = 1;
+  DESIGNER = 2;
+  PM = 3;
 }
 
-message Field {
-  string name = 1;
-  string label = 2;
-  string type = 3;   // string | number | select | checkbox | object | array | array<object>
-  bool required = 4;
-  repeated string options = 5;
-  repeated ValidationRule rules = 6;
-
-  // for array field
-  string item_type = 7; // string | number | boolean | object
-
-  // nested object definition (supports multi-level nesting)
-  repeated Field object_fields = 8;
-
-  // for array<object>, define item object fields
-  repeated Field item_object_fields = 9;
+enum GenderType {
+  GENDER_TYPE_UNSPECIFIED = 0;
+  FEMALE = 1;
+  MALE = 2;
 }
 
-message FormSchema {
-  string app_id = 1;      // proto filename == appId convention
-  string form_name = 2;
-  string version = 3;
-  repeated Field fields = 4;
+message ProfileAddress {
+  string city = 1;
+  string zipcode = 2;
 }
 
-// Example: deeply nested object schema
-message ProfileFormPreset {
-  FormSchema schema = 1;
+message ProfileObject {
+  string email = 1;
+  repeated ProfileAddress address = 2;
+}
+
+message ExperienceItem {
+  string company = 1;
+  int32 years = 2;
+}
+
+// Root message for admin runtime form generation.
+message ProfileAppForm {
+  string full_name = 1;
+  int32 age = 2;
+  Role role = 3;
+  GenderType gender = 4;
+  bool agree_policy = 5;
+  repeated string tags = 6;
+  ProfileObject profile = 7;
+  repeated ExperienceItem experiences = 8;
 }

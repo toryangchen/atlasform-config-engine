@@ -35,15 +35,34 @@ export function parseNestedFields(input: unknown): NestedField[] {
     if (!item || typeof item !== "object") continue;
     const f = item as RawField;
 
-    const idRaw = typeof f.key === "string" ? f.key : typeof f.name === "string" ? f.name : null;
+    const idRaw =
+      typeof f.id === "string"
+        ? f.id
+        : typeof f.key === "string"
+          ? f.key
+          : typeof f.name === "string"
+            ? f.name
+            : null;
     if (!idRaw) continue;
 
     const componentType =
-      typeof f.fieldType === "string" ? f.fieldType : typeof f.type === "string" ? f.type : "string";
+      typeof f.componentType === "string"
+        ? f.componentType
+        : typeof f.fieldType === "string"
+          ? f.fieldType
+          : typeof f.type === "string"
+            ? f.type
+            : "string";
     const label = typeof f.label === "string" ? f.label : idRaw;
-    const objectFieldsRaw = f.objectFields ?? f.fields ?? ((f.metadata as Record<string, unknown> | undefined)?.objectFields ?? null);
+    const objectFieldsRaw =
+      f.objectFields ??
+      f.object_fields ??
+      f.itemObjectFields ??
+      f.item_object_fields ??
+      f.fields ??
+      ((f.metadata as Record<string, unknown> | undefined)?.objectFields ?? null);
     const options = normalizeOptions(f.options);
-    const nested = componentType === "object" ? parseNestedFields(objectFieldsRaw) : [];
+    const nested = componentType === "object" || componentType === "array<object>" ? parseNestedFields(objectFieldsRaw) : [];
 
     fields.push({
       id: idRaw,
@@ -51,7 +70,7 @@ export function parseNestedFields(input: unknown): NestedField[] {
       componentType,
       required: Boolean(f.required),
       ...(options ? { options } : {}),
-      ...(componentType === "checkbox" ? { valuePropName: "checked" } : {}),
+      ...(componentType === "checkbox" || componentType === "switch" ? { valuePropName: "checked" } : {}),
       ...(nested.length > 0 ? { objectFields: nested } : {})
     });
   }

@@ -9,60 +9,136 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 
 export const protobufPackage = "lowcode.profile";
 
-export interface ValidationRule {
-  /** required, min, max, pattern */
-  type: string;
-  value: string;
+export enum Role {
+  ROLE_UNSPECIFIED = 0,
+  ENGINEER = 1,
+  DESIGNER = 2,
+  PM = 3,
+  UNRECOGNIZED = -1,
 }
 
-export interface Field {
-  name: string;
-  label: string;
-  /** string | number | select | checkbox | object | array | array<object> */
-  type: string;
-  required: boolean;
-  options: string[];
-  rules: ValidationRule[];
-  /** for array field */
-  itemType: string;
-  /** nested object definition (supports multi-level nesting) */
-  objectFields: Field[];
-  /** for array<object>, define item object fields */
-  itemObjectFields: Field[];
+export function roleFromJSON(object: any): Role {
+  switch (object) {
+    case 0:
+    case "ROLE_UNSPECIFIED":
+      return Role.ROLE_UNSPECIFIED;
+    case 1:
+    case "ENGINEER":
+      return Role.ENGINEER;
+    case 2:
+    case "DESIGNER":
+      return Role.DESIGNER;
+    case 3:
+    case "PM":
+      return Role.PM;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return Role.UNRECOGNIZED;
+  }
 }
 
-export interface FormSchema {
-  /** proto filename == appId convention */
-  appId: string;
-  formName: string;
-  version: string;
-  fields: Field[];
+export function roleToJSON(object: Role): string {
+  switch (object) {
+    case Role.ROLE_UNSPECIFIED:
+      return "ROLE_UNSPECIFIED";
+    case Role.ENGINEER:
+      return "ENGINEER";
+    case Role.DESIGNER:
+      return "DESIGNER";
+    case Role.PM:
+      return "PM";
+    case Role.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
 }
 
-/** Example: deeply nested object schema */
-export interface ProfileFormPreset {
-  schema?: FormSchema | undefined;
+export enum GenderType {
+  GENDER_TYPE_UNSPECIFIED = 0,
+  FEMALE = 1,
+  MALE = 2,
+  UNRECOGNIZED = -1,
 }
 
-function createBaseValidationRule(): ValidationRule {
-  return { type: "", value: "" };
+export function genderTypeFromJSON(object: any): GenderType {
+  switch (object) {
+    case 0:
+    case "GENDER_TYPE_UNSPECIFIED":
+      return GenderType.GENDER_TYPE_UNSPECIFIED;
+    case 1:
+    case "FEMALE":
+      return GenderType.FEMALE;
+    case 2:
+    case "MALE":
+      return GenderType.MALE;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return GenderType.UNRECOGNIZED;
+  }
 }
 
-export const ValidationRule: MessageFns<ValidationRule> = {
-  encode(message: ValidationRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.type !== "") {
-      writer.uint32(10).string(message.type);
+export function genderTypeToJSON(object: GenderType): string {
+  switch (object) {
+    case GenderType.GENDER_TYPE_UNSPECIFIED:
+      return "GENDER_TYPE_UNSPECIFIED";
+    case GenderType.FEMALE:
+      return "FEMALE";
+    case GenderType.MALE:
+      return "MALE";
+    case GenderType.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+export interface ProfileAddress {
+  city: string;
+  zipcode: string;
+}
+
+export interface ProfileObject {
+  email: string;
+  address: ProfileAddress[];
+}
+
+export interface ExperienceItem {
+  company: string;
+  years: number;
+}
+
+/** Root message for admin runtime form generation. */
+export interface ProfileAppForm {
+  fullName: string;
+  age: number;
+  role: Role;
+  gender: GenderType;
+  agreePolicy: boolean;
+  tags: string[];
+  profile?: ProfileObject | undefined;
+  experiences: ExperienceItem[];
+}
+
+function createBaseProfileAddress(): ProfileAddress {
+  return { city: "", zipcode: "" };
+}
+
+export const ProfileAddress: MessageFns<ProfileAddress> = {
+  encode(message: ProfileAddress, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.city !== "") {
+      writer.uint32(10).string(message.city);
     }
-    if (message.value !== "") {
-      writer.uint32(18).string(message.value);
+    if (message.zipcode !== "") {
+      writer.uint32(18).string(message.zipcode);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): ValidationRule {
+  decode(input: BinaryReader | Uint8Array, length?: number): ProfileAddress {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseValidationRule();
+    const message = createBaseProfileAddress();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -71,7 +147,7 @@ export const ValidationRule: MessageFns<ValidationRule> = {
             break;
           }
 
-          message.type = reader.string();
+          message.city = reader.string();
           continue;
         }
         case 2: {
@@ -79,7 +155,7 @@ export const ValidationRule: MessageFns<ValidationRule> = {
             break;
           }
 
-          message.value = reader.string();
+          message.zipcode = reader.string();
           continue;
         }
       }
@@ -91,85 +167,54 @@ export const ValidationRule: MessageFns<ValidationRule> = {
     return message;
   },
 
-  fromJSON(object: any): ValidationRule {
+  fromJSON(object: any): ProfileAddress {
     return {
-      type: isSet(object.type) ? globalThis.String(object.type) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      city: isSet(object.city) ? globalThis.String(object.city) : "",
+      zipcode: isSet(object.zipcode) ? globalThis.String(object.zipcode) : "",
     };
   },
 
-  toJSON(message: ValidationRule): unknown {
+  toJSON(message: ProfileAddress): unknown {
     const obj: any = {};
-    if (message.type !== "") {
-      obj.type = message.type;
+    if (message.city !== "") {
+      obj.city = message.city;
     }
-    if (message.value !== "") {
-      obj.value = message.value;
+    if (message.zipcode !== "") {
+      obj.zipcode = message.zipcode;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ValidationRule>, I>>(base?: I): ValidationRule {
-    return ValidationRule.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<ProfileAddress>, I>>(base?: I): ProfileAddress {
+    return ProfileAddress.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ValidationRule>, I>>(object: I): ValidationRule {
-    const message = createBaseValidationRule();
-    message.type = object.type ?? "";
-    message.value = object.value ?? "";
+  fromPartial<I extends Exact<DeepPartial<ProfileAddress>, I>>(object: I): ProfileAddress {
+    const message = createBaseProfileAddress();
+    message.city = object.city ?? "";
+    message.zipcode = object.zipcode ?? "";
     return message;
   },
 };
 
-function createBaseField(): Field {
-  return {
-    name: "",
-    label: "",
-    type: "",
-    required: false,
-    options: [],
-    rules: [],
-    itemType: "",
-    objectFields: [],
-    itemObjectFields: [],
-  };
+function createBaseProfileObject(): ProfileObject {
+  return { email: "", address: [] };
 }
 
-export const Field: MessageFns<Field> = {
-  encode(message: Field, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
-      writer.uint32(10).string(message.name);
+export const ProfileObject: MessageFns<ProfileObject> = {
+  encode(message: ProfileObject, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.email !== "") {
+      writer.uint32(10).string(message.email);
     }
-    if (message.label !== "") {
-      writer.uint32(18).string(message.label);
-    }
-    if (message.type !== "") {
-      writer.uint32(26).string(message.type);
-    }
-    if (message.required !== false) {
-      writer.uint32(32).bool(message.required);
-    }
-    for (const v of message.options) {
-      writer.uint32(42).string(v!);
-    }
-    for (const v of message.rules) {
-      ValidationRule.encode(v!, writer.uint32(50).fork()).join();
-    }
-    if (message.itemType !== "") {
-      writer.uint32(58).string(message.itemType);
-    }
-    for (const v of message.objectFields) {
-      Field.encode(v!, writer.uint32(66).fork()).join();
-    }
-    for (const v of message.itemObjectFields) {
-      Field.encode(v!, writer.uint32(74).fork()).join();
+    for (const v of message.address) {
+      ProfileAddress.encode(v!, writer.uint32(18).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): Field {
+  decode(input: BinaryReader | Uint8Array, length?: number): ProfileObject {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseField();
+    const message = createBaseProfileObject();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -178,7 +223,7 @@ export const Field: MessageFns<Field> = {
             break;
           }
 
-          message.name = reader.string();
+          message.email = reader.string();
           continue;
         }
         case 2: {
@@ -186,15 +231,196 @@ export const Field: MessageFns<Field> = {
             break;
           }
 
-          message.label = reader.string();
+          message.address.push(ProfileAddress.decode(reader, reader.uint32()));
           continue;
         }
-        case 3: {
-          if (tag !== 26) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ProfileObject {
+    return {
+      email: isSet(object.email) ? globalThis.String(object.email) : "",
+      address: globalThis.Array.isArray(object?.address)
+        ? object.address.map((e: any) => ProfileAddress.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: ProfileObject): unknown {
+    const obj: any = {};
+    if (message.email !== "") {
+      obj.email = message.email;
+    }
+    if (message.address?.length) {
+      obj.address = message.address.map((e) => ProfileAddress.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ProfileObject>, I>>(base?: I): ProfileObject {
+    return ProfileObject.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ProfileObject>, I>>(object: I): ProfileObject {
+    const message = createBaseProfileObject();
+    message.email = object.email ?? "";
+    message.address = object.address?.map((e) => ProfileAddress.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseExperienceItem(): ExperienceItem {
+  return { company: "", years: 0 };
+}
+
+export const ExperienceItem: MessageFns<ExperienceItem> = {
+  encode(message: ExperienceItem, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.company !== "") {
+      writer.uint32(10).string(message.company);
+    }
+    if (message.years !== 0) {
+      writer.uint32(16).int32(message.years);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ExperienceItem {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseExperienceItem();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
             break;
           }
 
-          message.type = reader.string();
+          message.company = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.years = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ExperienceItem {
+    return {
+      company: isSet(object.company) ? globalThis.String(object.company) : "",
+      years: isSet(object.years) ? globalThis.Number(object.years) : 0,
+    };
+  },
+
+  toJSON(message: ExperienceItem): unknown {
+    const obj: any = {};
+    if (message.company !== "") {
+      obj.company = message.company;
+    }
+    if (message.years !== 0) {
+      obj.years = Math.round(message.years);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ExperienceItem>, I>>(base?: I): ExperienceItem {
+    return ExperienceItem.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ExperienceItem>, I>>(object: I): ExperienceItem {
+    const message = createBaseExperienceItem();
+    message.company = object.company ?? "";
+    message.years = object.years ?? 0;
+    return message;
+  },
+};
+
+function createBaseProfileAppForm(): ProfileAppForm {
+  return {
+    fullName: "",
+    age: 0,
+    role: 0,
+    gender: 0,
+    agreePolicy: false,
+    tags: [],
+    profile: undefined,
+    experiences: [],
+  };
+}
+
+export const ProfileAppForm: MessageFns<ProfileAppForm> = {
+  encode(message: ProfileAppForm, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.fullName !== "") {
+      writer.uint32(10).string(message.fullName);
+    }
+    if (message.age !== 0) {
+      writer.uint32(16).int32(message.age);
+    }
+    if (message.role !== 0) {
+      writer.uint32(24).int32(message.role);
+    }
+    if (message.gender !== 0) {
+      writer.uint32(32).int32(message.gender);
+    }
+    if (message.agreePolicy !== false) {
+      writer.uint32(40).bool(message.agreePolicy);
+    }
+    for (const v of message.tags) {
+      writer.uint32(50).string(v!);
+    }
+    if (message.profile !== undefined) {
+      ProfileObject.encode(message.profile, writer.uint32(58).fork()).join();
+    }
+    for (const v of message.experiences) {
+      ExperienceItem.encode(v!, writer.uint32(66).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ProfileAppForm {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseProfileAppForm();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.fullName = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.age = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.role = reader.int32() as any;
           continue;
         }
         case 4: {
@@ -202,15 +428,15 @@ export const Field: MessageFns<Field> = {
             break;
           }
 
-          message.required = reader.bool();
+          message.gender = reader.int32() as any;
           continue;
         }
         case 5: {
-          if (tag !== 42) {
+          if (tag !== 40) {
             break;
           }
 
-          message.options.push(reader.string());
+          message.agreePolicy = reader.bool();
           continue;
         }
         case 6: {
@@ -218,7 +444,7 @@ export const Field: MessageFns<Field> = {
             break;
           }
 
-          message.rules.push(ValidationRule.decode(reader, reader.uint32()));
+          message.tags.push(reader.string());
           continue;
         }
         case 7: {
@@ -226,7 +452,7 @@ export const Field: MessageFns<Field> = {
             break;
           }
 
-          message.itemType = reader.string();
+          message.profile = ProfileObject.decode(reader, reader.uint32());
           continue;
         }
         case 8: {
@@ -234,15 +460,7 @@ export const Field: MessageFns<Field> = {
             break;
           }
 
-          message.objectFields.push(Field.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 9: {
-          if (tag !== 74) {
-            break;
-          }
-
-          message.itemObjectFields.push(Field.decode(reader, reader.uint32()));
+          message.experiences.push(ExperienceItem.decode(reader, reader.uint32()));
           continue;
         }
       }
@@ -254,254 +472,73 @@ export const Field: MessageFns<Field> = {
     return message;
   },
 
-  fromJSON(object: any): Field {
+  fromJSON(object: any): ProfileAppForm {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      label: isSet(object.label) ? globalThis.String(object.label) : "",
-      type: isSet(object.type) ? globalThis.String(object.type) : "",
-      required: isSet(object.required) ? globalThis.Boolean(object.required) : false,
-      options: globalThis.Array.isArray(object?.options) ? object.options.map((e: any) => globalThis.String(e)) : [],
-      rules: globalThis.Array.isArray(object?.rules) ? object.rules.map((e: any) => ValidationRule.fromJSON(e)) : [],
-      itemType: isSet(object.itemType)
-        ? globalThis.String(object.itemType)
-        : isSet(object.item_type)
-        ? globalThis.String(object.item_type)
+      fullName: isSet(object.fullName)
+        ? globalThis.String(object.fullName)
+        : isSet(object.full_name)
+        ? globalThis.String(object.full_name)
         : "",
-      objectFields: globalThis.Array.isArray(object?.objectFields)
-        ? object.objectFields.map((e: any) => Field.fromJSON(e))
-        : globalThis.Array.isArray(object?.object_fields)
-        ? object.object_fields.map((e: any) => Field.fromJSON(e))
-        : [],
-      itemObjectFields: globalThis.Array.isArray(object?.itemObjectFields)
-        ? object.itemObjectFields.map((e: any) => Field.fromJSON(e))
-        : globalThis.Array.isArray(object?.item_object_fields)
-        ? object.item_object_fields.map((e: any) => Field.fromJSON(e))
+      age: isSet(object.age) ? globalThis.Number(object.age) : 0,
+      role: isSet(object.role) ? roleFromJSON(object.role) : 0,
+      gender: isSet(object.gender) ? genderTypeFromJSON(object.gender) : 0,
+      agreePolicy: isSet(object.agreePolicy)
+        ? globalThis.Boolean(object.agreePolicy)
+        : isSet(object.agree_policy)
+        ? globalThis.Boolean(object.agree_policy)
+        : false,
+      tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [],
+      profile: isSet(object.profile) ? ProfileObject.fromJSON(object.profile) : undefined,
+      experiences: globalThis.Array.isArray(object?.experiences)
+        ? object.experiences.map((e: any) => ExperienceItem.fromJSON(e))
         : [],
     };
   },
 
-  toJSON(message: Field): unknown {
+  toJSON(message: ProfileAppForm): unknown {
     const obj: any = {};
-    if (message.name !== "") {
-      obj.name = message.name;
+    if (message.fullName !== "") {
+      obj.fullName = message.fullName;
     }
-    if (message.label !== "") {
-      obj.label = message.label;
+    if (message.age !== 0) {
+      obj.age = Math.round(message.age);
     }
-    if (message.type !== "") {
-      obj.type = message.type;
+    if (message.role !== 0) {
+      obj.role = roleToJSON(message.role);
     }
-    if (message.required !== false) {
-      obj.required = message.required;
+    if (message.gender !== 0) {
+      obj.gender = genderTypeToJSON(message.gender);
     }
-    if (message.options?.length) {
-      obj.options = message.options;
+    if (message.agreePolicy !== false) {
+      obj.agreePolicy = message.agreePolicy;
     }
-    if (message.rules?.length) {
-      obj.rules = message.rules.map((e) => ValidationRule.toJSON(e));
+    if (message.tags?.length) {
+      obj.tags = message.tags;
     }
-    if (message.itemType !== "") {
-      obj.itemType = message.itemType;
+    if (message.profile !== undefined) {
+      obj.profile = ProfileObject.toJSON(message.profile);
     }
-    if (message.objectFields?.length) {
-      obj.objectFields = message.objectFields.map((e) => Field.toJSON(e));
-    }
-    if (message.itemObjectFields?.length) {
-      obj.itemObjectFields = message.itemObjectFields.map((e) => Field.toJSON(e));
+    if (message.experiences?.length) {
+      obj.experiences = message.experiences.map((e) => ExperienceItem.toJSON(e));
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<Field>, I>>(base?: I): Field {
-    return Field.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<ProfileAppForm>, I>>(base?: I): ProfileAppForm {
+    return ProfileAppForm.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<Field>, I>>(object: I): Field {
-    const message = createBaseField();
-    message.name = object.name ?? "";
-    message.label = object.label ?? "";
-    message.type = object.type ?? "";
-    message.required = object.required ?? false;
-    message.options = object.options?.map((e) => e) || [];
-    message.rules = object.rules?.map((e) => ValidationRule.fromPartial(e)) || [];
-    message.itemType = object.itemType ?? "";
-    message.objectFields = object.objectFields?.map((e) => Field.fromPartial(e)) || [];
-    message.itemObjectFields = object.itemObjectFields?.map((e) => Field.fromPartial(e)) || [];
-    return message;
-  },
-};
-
-function createBaseFormSchema(): FormSchema {
-  return { appId: "", formName: "", version: "", fields: [] };
-}
-
-export const FormSchema: MessageFns<FormSchema> = {
-  encode(message: FormSchema, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.appId !== "") {
-      writer.uint32(10).string(message.appId);
-    }
-    if (message.formName !== "") {
-      writer.uint32(18).string(message.formName);
-    }
-    if (message.version !== "") {
-      writer.uint32(26).string(message.version);
-    }
-    for (const v of message.fields) {
-      Field.encode(v!, writer.uint32(34).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): FormSchema {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseFormSchema();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.appId = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.formName = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.version = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
-          message.fields.push(Field.decode(reader, reader.uint32()));
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): FormSchema {
-    return {
-      appId: isSet(object.appId)
-        ? globalThis.String(object.appId)
-        : isSet(object.app_id)
-        ? globalThis.String(object.app_id)
-        : "",
-      formName: isSet(object.formName)
-        ? globalThis.String(object.formName)
-        : isSet(object.form_name)
-        ? globalThis.String(object.form_name)
-        : "",
-      version: isSet(object.version) ? globalThis.String(object.version) : "",
-      fields: globalThis.Array.isArray(object?.fields) ? object.fields.map((e: any) => Field.fromJSON(e)) : [],
-    };
-  },
-
-  toJSON(message: FormSchema): unknown {
-    const obj: any = {};
-    if (message.appId !== "") {
-      obj.appId = message.appId;
-    }
-    if (message.formName !== "") {
-      obj.formName = message.formName;
-    }
-    if (message.version !== "") {
-      obj.version = message.version;
-    }
-    if (message.fields?.length) {
-      obj.fields = message.fields.map((e) => Field.toJSON(e));
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<FormSchema>, I>>(base?: I): FormSchema {
-    return FormSchema.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<FormSchema>, I>>(object: I): FormSchema {
-    const message = createBaseFormSchema();
-    message.appId = object.appId ?? "";
-    message.formName = object.formName ?? "";
-    message.version = object.version ?? "";
-    message.fields = object.fields?.map((e) => Field.fromPartial(e)) || [];
-    return message;
-  },
-};
-
-function createBaseProfileFormPreset(): ProfileFormPreset {
-  return { schema: undefined };
-}
-
-export const ProfileFormPreset: MessageFns<ProfileFormPreset> = {
-  encode(message: ProfileFormPreset, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.schema !== undefined) {
-      FormSchema.encode(message.schema, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): ProfileFormPreset {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseProfileFormPreset();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.schema = FormSchema.decode(reader, reader.uint32());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ProfileFormPreset {
-    return { schema: isSet(object.schema) ? FormSchema.fromJSON(object.schema) : undefined };
-  },
-
-  toJSON(message: ProfileFormPreset): unknown {
-    const obj: any = {};
-    if (message.schema !== undefined) {
-      obj.schema = FormSchema.toJSON(message.schema);
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<ProfileFormPreset>, I>>(base?: I): ProfileFormPreset {
-    return ProfileFormPreset.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<ProfileFormPreset>, I>>(object: I): ProfileFormPreset {
-    const message = createBaseProfileFormPreset();
-    message.schema = (object.schema !== undefined && object.schema !== null)
-      ? FormSchema.fromPartial(object.schema)
+  fromPartial<I extends Exact<DeepPartial<ProfileAppForm>, I>>(object: I): ProfileAppForm {
+    const message = createBaseProfileAppForm();
+    message.fullName = object.fullName ?? "";
+    message.age = object.age ?? 0;
+    message.role = object.role ?? 0;
+    message.gender = object.gender ?? 0;
+    message.agreePolicy = object.agreePolicy ?? false;
+    message.tags = object.tags?.map((e) => e) || [];
+    message.profile = (object.profile !== undefined && object.profile !== null)
+      ? ProfileObject.fromPartial(object.profile)
       : undefined;
+    message.experiences = object.experiences?.map((e) => ExperienceItem.fromPartial(e)) || [];
     return message;
   },
 };

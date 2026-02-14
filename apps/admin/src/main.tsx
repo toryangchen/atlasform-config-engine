@@ -15,6 +15,7 @@ import {
   Select,
   Space,
   Statistic,
+  Switch,
   Table,
   Tag,
   Typography,
@@ -63,6 +64,7 @@ componentRegistry.registerComponent("number", InputNumber);
 componentRegistry.registerComponent("select", Select);
 componentRegistry.registerComponent("checkbox", Checkbox);
 componentRegistry.registerComponent("checkbox-group", Checkbox.Group);
+componentRegistry.registerComponent("switch", Switch);
 componentRegistry.registerComponent("object", ObjectDrawerField);
 componentRegistry.registerComponent("array", ArrayStringTableField);
 componentRegistry.registerComponent("array<object>", ArrayObjectTableField);
@@ -396,7 +398,7 @@ function DataListPage() {
           <Statistic title="数据条数" value={rows.length} />
         </Card>
         <Card className="metric-card" bordered={false}>
-          <Statistic title="可用表单版本" value={forms.length} />
+          <Statistic title="当前表单数量" value={forms.length} />
         </Card>
       </div>
 
@@ -413,50 +415,38 @@ function DataFormPage({ mode }: { mode: "new" | "edit" }) {
   const [api, contextHolder] = message.useMessage();
   const [editorForm] = Form.useForm();
   const { forms, rows, load } = useAppData(appId);
-  const [selectedFormKey, setSelectedFormKey] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
     void load();
   }, [load]);
 
+  const editingRow = React.useMemo(() => rows.find((r) => r._id === dataId), [rows, dataId]);
+
   React.useEffect(() => {
-    if (forms.length === 0) return;
+    if (mode !== "edit") return;
+    if (!editingRow) return;
+    editorForm.setFieldsValue(editingRow.data);
+  }, [mode, editingRow, editorForm]);
 
-    if (mode === "new") {
-      if (!selectedFormKey) {
-        setSelectedFormKey(`${forms[0]!.formName}@@${forms[0]!.version}`);
-      }
-      return;
-    }
-
-    const row = rows.find((r) => r._id === dataId);
-    if (!row) return;
-    const key = `${row.formName}@@${row.version}`;
-    setSelectedFormKey(key);
-    editorForm.setFieldsValue(row.data);
-  }, [forms, rows, mode, dataId, selectedFormKey, editorForm]);
-
-  const formOptions = React.useMemo(
-    () => forms.map((f) => ({ label: `${f.formName} @ ${f.version}`, value: `${f.formName}@@${f.version}` })),
-    [forms]
-  );
+  const resolvedFormName = React.useMemo(() => {
+    if (mode === "edit") return editingRow?.formName ?? "";
+    return forms[0]?.formName ?? "";
+  }, [mode, editingRow, forms]);
 
   const selectedForm = React.useMemo(() => {
-    const [formName, version] = selectedFormKey.split("@@");
-    const exact = forms.find((f) => f.formName === formName && f.version === version);
+    const exact = forms.find((f) => f.formName === resolvedFormName);
     if (hasRenderableSchema(exact)) return exact;
-    return forms.find((f) => f.formName === formName && hasRenderableSchema(f)) ?? exact;
-  }, [forms, selectedFormKey]);
+    return forms.find((f) => f.formName === resolvedFormName && hasRenderableSchema(f)) ?? exact;
+  }, [forms, resolvedFormName]);
 
   const runtimeSchema = React.useMemo(() => toRuntimeSchema(selectedForm), [selectedForm]);
 
   const save = async () => {
-    if (!selectedFormKey) {
-      api.error("请先选择 form/version");
+    if (!resolvedFormName) {
+      api.error("当前应用没有可用 form");
       return;
     }
-    const [formName, version] = selectedFormKey.split("@@");
     const values = editorForm.getFieldsValue(true) as Record<string, unknown>;
 
     setLoading(true);
@@ -466,7 +456,7 @@ function DataFormPage({ mode }: { mode: "new" | "edit" }) {
       const res = await fetch(url, {
         method,
         headers: { "content-type": "application/json", "x-tenant-id": TENANT },
-        body: JSON.stringify({ formName, version, data: values })
+        body: JSON.stringify({ formName: resolvedFormName, data: values })
       });
 
       if (!res.ok) {
@@ -506,20 +496,6 @@ function DataFormPage({ mode }: { mode: "new" | "edit" }) {
       />
 
       <Card className="panel-card" bordered={false}>
-        <Form layout="vertical">
-          <Form.Item label="Form@Version" required>
-            <Select
-              value={selectedFormKey}
-              options={formOptions}
-              placeholder="选择要编辑的数据结构版本"
-              onChange={(v) => {
-                setSelectedFormKey(v);
-                editorForm.resetFields();
-              }}
-            />
-          </Form.Item>
-        </Form>
-
         {runtimeSchema ? (
           <FormRenderer form={editorForm} schema={runtimeSchema} />
         ) : (
