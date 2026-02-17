@@ -11,6 +11,7 @@ import {
   Input,
   InputNumber,
   Layout,
+  Menu,
   Popconfirm,
   Select,
   Space,
@@ -22,7 +23,7 @@ import {
   message
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import { componentRegistry } from "@lowcode/component-registry";
 import { ArrayObjectTableField, ArrayStringTableField, FormRenderer, ObjectDrawerField } from "@lowcode/form-engine";
 import { domainToRuntime } from "@lowcode/schema-runtime";
@@ -56,6 +57,7 @@ interface DataItem {
 }
 
 const { Header, Content } = Layout;
+const { Sider } = Layout;
 const API_BASE = "http://localhost:3000";
 const TENANT = "demo-tenant";
 
@@ -173,9 +175,14 @@ function hasRenderableSchema(form: FormItem | undefined): boolean {
   return Boolean(Array.isArray(raw.fields) || (raw.schema && typeof raw.schema === "object" && Array.isArray((raw.schema as any).fields)));
 }
 
-const PageHero: React.FC<{ title: string; subtitle: string; actions?: React.ReactNode }> = ({ title, subtitle, actions }) => {
+const PageHero: React.FC<{ title: string; subtitle: string; actions?: React.ReactNode; className?: string }> = ({
+  title,
+  subtitle,
+  actions,
+  className
+}) => {
   return (
-    <Card className="hero-card" bordered={false}>
+    <Card className={`hero-card ${className ?? ""}`.trim()} bordered={false}>
       <div className="hero-content">
         <div>
           <Typography.Title level={3} className="hero-title">
@@ -190,9 +197,53 @@ const PageHero: React.FC<{ title: string; subtitle: string; actions?: React.Reac
 };
 
 function AppLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [apps, setApps] = React.useState<AppDefinition[]>([]);
+  const [loading, setLoading] = React.useState(false);
+
+  const loadApps = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/apps`);
+      setApps((await res.json()) as AppDefinition[]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadApps();
+  }, [loadApps]);
+
+  const selectedKey = React.useMemo(() => {
+    if (location.pathname === "/apps") return "apps-overview";
+    const match = location.pathname.match(/^\/apps\/([^/]+)/);
+    if (!match?.[1]) return "";
+    return `app:${match[1]}`;
+  }, [location.pathname]);
+
+  const menuItems = React.useMemo(
+    () => [
+      { key: "apps-overview", label: "应用管理" },
+      ...apps.map((app) => ({ key: `app:${app.appId}`, label: app.name }))
+    ],
+    [apps]
+  );
+
+  const onMenuClick = ({ key }: { key: string }) => {
+    if (key === "apps-overview") {
+      navigate("/apps");
+      return;
+    }
+    if (key.startsWith("app:")) {
+      navigate(`/apps/${key.slice(4)}/data`);
+    }
+  };
+
   return (
     <Layout className="admin-shell">
-      <Header className="admin-header">
+      <Header className="admin-header sticky-top">
         <div className="header-left">
           <div className="brand-dot" />
           <Typography.Text className="brand-title">AtlasForm Config Engine</Typography.Text>
@@ -200,11 +251,28 @@ function AppLayout() {
         </div>
         <Typography.Text className="header-caption">Multi-App Config Console</Typography.Text>
       </Header>
-      <Content className="admin-content">
-        <div className="content-wrap">
-          <Outlet />
-        </div>
-      </Content>
+      <Layout className="admin-body">
+        <Sider className="admin-sider" width={252} theme="light" breakpoint="lg" collapsedWidth={0}>
+          <div className="sider-head">
+            <Typography.Text className="app-switcher-title">应用导航</Typography.Text>
+            <Button size="small" onClick={() => void loadApps()} loading={loading}>
+              刷新
+            </Button>
+          </div>
+          <Menu
+            mode="inline"
+            selectedKeys={selectedKey ? [selectedKey] : []}
+            items={menuItems}
+            onClick={onMenuClick}
+            className="app-menu"
+          />
+        </Sider>
+        <Content className="admin-content">
+          <div className="content-wrap">
+            <Outlet />
+          </div>
+        </Content>
+      </Layout>
     </Layout>
   );
 }
@@ -212,6 +280,7 @@ function AppLayout() {
 function AppsPage() {
   const [apps, setApps] = React.useState<AppDefinition[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [query, setQuery] = React.useState("");
   const navigate = useNavigate();
 
   const load = React.useCallback(async () => {
@@ -254,29 +323,44 @@ function AppsPage() {
     }
   ];
 
+  const filteredApps = React.useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    if (!keyword) return apps;
+    return apps.filter((app) => {
+      const haystack = [app.name, app.appId, app.protoFile].join(" ").toLowerCase();
+      return haystack.includes(keyword);
+    });
+  }, [apps, query]);
+
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      <PageHero
-        title="应用管理"
-        subtitle="每个 proto 文件对应一个业务应用。进入后可管理该应用的结构化数据。"
-        actions={
-          <Button onClick={() => void load()} loading={loading}>
-            刷新
-          </Button>
-        }
-      />
-
-      <div className="metrics-grid">
-        <Card className="metric-card" bordered={false}>
-          <Statistic title="应用总数" value={apps.length} />
-        </Card>
+      <div className="sticky-page-module list-breadcrumb-bar">
+        <Breadcrumb
+          items={[
+            { title: "应用管理" }
+          ]}
+        />
       </div>
 
       <Card className="panel-card" bordered={false}>
+        <div className="list-toolbar">
+          <Input.Search
+            allowClear
+            placeholder="搜索 应用名 / appId / proto 文件"
+            className="list-toolbar-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <Space>
+            <Button onClick={() => void load()} loading={loading}>
+              刷新
+            </Button>
+          </Space>
+        </div>
         <Table
           rowKey="appId"
           loading={loading}
-          dataSource={apps}
+          dataSource={filteredApps}
           columns={columns}
           pagination={false}
           locale={{ emptyText: <Empty description="暂无应用，请先添加 proto 文件" /> }}
@@ -313,11 +397,22 @@ function DataListPage() {
   const { appId = "" } = useParams();
   const [api, contextHolder] = message.useMessage();
   const navigate = useNavigate();
-  const { rows, forms, loading, load } = useAppData(appId);
+  const { rows, loading, load } = useAppData(appId);
+  const [query, setQuery] = React.useState("");
 
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  const appLabel = React.useMemo(
+    () =>
+      appId
+        .split(/[-_]/g)
+        .filter(Boolean)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(" "),
+    [appId]
+  );
 
   const remove = async (id: string) => {
     const res = await fetch(`${API_BASE}/apps/${appId}/data/${id}`, {
@@ -367,13 +462,36 @@ function DataListPage() {
     }
   ];
 
+  const filteredRows = React.useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    if (!keyword) return rows;
+    return rows.filter((row) => {
+      const haystack = [row._id, row.formName, row.version, JSON.stringify(row.data ?? {})].join(" ").toLowerCase();
+      return haystack.includes(keyword);
+    });
+  }, [rows, query]);
+
   return (
-    <Space direction="vertical" size={16} style={{ width: "100%" }}>
+    <div className="page-section">
       {contextHolder}
-      <PageHero
-        title={`数据列表 · ${appId}`}
-        subtitle="查看、编辑并维护该应用下的全部业务数据。"
-        actions={
+      <div className="sticky-page-module list-breadcrumb-bar">
+        <Breadcrumb
+          items={[
+            { title: <Link to="/apps">应用管理</Link> },
+            { title: `数据列表(${appLabel || appId})` }
+          ]}
+        />
+      </div>
+
+      <Card className="panel-card" bordered={false}>
+        <div className="list-toolbar">
+          <Input.Search
+            allowClear
+            placeholder="搜索 ID / Form / Version / 数据内容"
+            className="list-toolbar-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
           <Space>
             <Button onClick={() => void load()} loading={loading}>
               刷新
@@ -382,30 +500,10 @@ function DataListPage() {
               新增数据
             </Button>
           </Space>
-        }
-      />
-
-      <Breadcrumb
-        items={[
-          { title: <Link to="/apps">应用列表</Link> },
-          { title: `应用 ${appId}` },
-          { title: "数据列表" }
-        ]}
-      />
-
-      <div className="metrics-grid">
-        <Card className="metric-card" bordered={false}>
-          <Statistic title="数据条数" value={rows.length} />
-        </Card>
-        <Card className="metric-card" bordered={false}>
-          <Statistic title="当前表单数量" value={forms.length} />
-        </Card>
-      </div>
-
-      <Card className="panel-card" bordered={false}>
-        <Table rowKey="_id" loading={loading} dataSource={rows} columns={columns} />
+        </div>
+        <Table rowKey="_id" loading={loading} dataSource={filteredRows} columns={columns} />
       </Card>
-    </Space>
+    </div>
   );
 }
 
@@ -416,6 +514,15 @@ function DataFormPage({ mode }: { mode: "new" | "edit" }) {
   const [editorForm] = Form.useForm();
   const { forms, rows, load } = useAppData(appId);
   const [loading, setLoading] = React.useState(false);
+  const appLabel = React.useMemo(
+    () =>
+      appId
+        .split(/[-_]/g)
+        .filter(Boolean)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(" "),
+    [appId]
+  );
 
   React.useEffect(() => {
     void load();
@@ -472,37 +579,38 @@ function DataFormPage({ mode }: { mode: "new" | "edit" }) {
   };
 
   return (
-    <Space direction="vertical" size={16} style={{ width: "100%" }}>
+    <div className="page-section">
       {contextHolder}
-      <PageHero
-        title={`${mode === "new" ? "新增" : "编辑"}数据 · ${appId}`}
-        subtitle="通过自动生成表单维护结构化数据，支持复杂对象字段。"
-        actions={
-          <Space>
-            <Button onClick={() => navigate(`/apps/${appId}/data`)}>取消</Button>
-            <Button type="primary" onClick={() => void save()} loading={loading}>
-              保存
-            </Button>
-          </Space>
-        }
-      />
-
-      <Breadcrumb
-        items={[
-          { title: <Link to="/apps">应用列表</Link> },
-          { title: <Link to={`/apps/${appId}/data`}>数据列表</Link> },
-          { title: mode === "new" ? "新增" : "编辑" }
-        ]}
-      />
+      <div className="sticky-page-module list-breadcrumb-bar">
+        <div className="breadcrumb-row">
+          <Breadcrumb
+            items={[
+              { title: <Link to="/apps">应用管理</Link> },
+              { title: <Link to={`/apps/${appId}/data`}>{`数据列表(${appLabel || appId})`}</Link> },
+              { title: mode === "new" ? "新增" : "编辑" }
+            ]}
+          />
+        </div>
+      </div>
 
       <Card className="panel-card" bordered={false}>
         {runtimeSchema ? (
-          <FormRenderer form={editorForm} schema={runtimeSchema} />
+          <>
+            <FormRenderer form={editorForm} schema={runtimeSchema} />
+            <div className="form-inline-actions">
+              <Space>
+                <Button onClick={() => navigate(`/apps/${appId}/data`)}>取消</Button>
+                <Button type="primary" onClick={() => void save()} loading={loading}>
+                  保存
+                </Button>
+              </Space>
+            </div>
+          </>
         ) : (
           <Empty description="当前 form schema 不可用，无法生成表单" />
         )}
       </Card>
-    </Space>
+    </div>
   );
 }
 
