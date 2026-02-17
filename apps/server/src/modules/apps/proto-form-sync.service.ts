@@ -9,6 +9,9 @@ interface ProtoField {
   name: string;
   type: string;
   repeated: boolean;
+  label?: string;
+  required?: boolean;
+  pattern?: string;
 }
 
 interface MessageDef {
@@ -18,7 +21,7 @@ interface MessageDef {
 
 interface EnumDef {
   name: string;
-  values: string[];
+  values: Array<string | { label: string; value: string }>;
 }
 
 type SchemaField = Record<string, unknown>;
@@ -73,7 +76,7 @@ export class ProtoFormSyncService implements OnModuleInit {
   }
 
   private buildSchemaFromProto(appId: string, protoText: string): { appId: string; formName: string; version: string; fields: SchemaField[] } | null {
-    const clean = this.stripComments(protoText);
+    const clean = this.stripBlockComments(protoText);
     const messages = this.parseMessages(clean);
     const enums = this.parseEnums(clean);
     if (messages.size === 0) return null;
@@ -94,64 +97,67 @@ export class ProtoFormSyncService implements OnModuleInit {
 
   private toSchemaField(field: ProtoField, messages: Map<string, MessageDef>, enums: Map<string, EnumDef>): SchemaField | null {
     const scalar = this.scalarKind(field.type);
+    const label = field.label ?? this.toLabel(field.name);
+    const required = Boolean(field.required);
+    const rules = this.buildRules(field);
 
     if (field.repeated) {
       if (scalar === "string") {
-        return { name: field.name, label: this.toLabel(field.name), type: "array", item_type: "string", required: false, rules: [] };
+        return { name: field.name, label, type: "array", item_type: "string", required, rules };
       }
       if (scalar === "number") {
-        return { name: field.name, label: this.toLabel(field.name), type: "array", item_type: "number", required: false, rules: [] };
+        return { name: field.name, label, type: "array", item_type: "number", required, rules };
       }
       if (scalar === "boolean") {
         return {
           name: field.name,
-          label: this.toLabel(field.name),
+          label,
           type: "checkbox-group",
           options: ["true", "false"],
-          required: false,
-          rules: []
+          required,
+          rules
         };
       }
       const enumDef = enums.get(field.type);
       if (enumDef) {
-        return { name: field.name, label: this.toLabel(field.name), type: "checkbox-group", options: enumDef.values, required: false, rules: [] };
+        return { name: field.name, label, type: "checkbox-group", options: enumDef.values, required, rules };
       }
       const obj = messages.get(field.type);
       if (obj) {
         return {
           name: field.name,
-          label: this.toLabel(field.name),
+          label,
           type: "array<object>",
-          required: false,
+          required,
           item_object_fields: obj.fields
             .map((f) => this.toSchemaField(f, messages, enums))
             .filter((item): item is SchemaField => Boolean(item)),
-          rules: []
+          rules
         };
       }
       return null;
     }
 
-    if (scalar === "string") return { name: field.name, label: this.toLabel(field.name), type: "string", required: false, rules: [] };
-    if (scalar === "number") return { name: field.name, label: this.toLabel(field.name), type: "number", required: false, rules: [] };
-    if (scalar === "boolean") return { name: field.name, label: this.toLabel(field.name), type: "switch", required: false, rules: [] };
+    if (scalar === "string") return { name: field.name, label, type: "string", required, rules };
+    if (scalar === "number") return { name: field.name, label, type: "number", required, rules };
+    if (scalar === "boolean") return { name: field.name, label, type: "switch", required, rules };
 
     const enumDef = enums.get(field.type);
     if (enumDef) {
-      return { name: field.name, label: this.toLabel(field.name), type: "select", options: enumDef.values, required: false, rules: [] };
+      return { name: field.name, label, type: "select", options: enumDef.values, required, rules };
     }
 
     const obj = messages.get(field.type);
     if (obj) {
       return {
         name: field.name,
-        label: this.toLabel(field.name),
+        label,
         type: "object",
-        required: false,
+        required,
         object_fields: obj.fields
           .map((f) => this.toSchemaField(f, messages, enums))
           .filter((item): item is SchemaField => Boolean(item)),
-        rules: []
+        rules
       };
     }
 
@@ -164,16 +170,39 @@ export class ProtoFormSyncService implements OnModuleInit {
     for (const b of blocks) {
       const body = this.removeInnerBlocks(b.body);
       const fields: ProtoField[] = [];
+      let pendingMeta: { label?: string; required?: boolean; pattern?: string } = {};
+
       for (const raw of body.split("\n")) {
         const line = raw.trim();
-        if (!line || line.startsWith("reserved ") || line.startsWith("oneof ")) continue;
-        const m = line.match(/^(repeated\s+)?([A-Za-z_][\w.]*)\s+([A-Za-z_]\w*)\s*=\s*\d+\s*(?:\[[^\]]*\])?;/);
+        if (!line) continue;
+        if (line.startsWith("//")) {
+          const fromCommentLine = this.extractFieldMetaFromComment(line.replace(/^\/\//, "").trim());
+          pendingMeta = {
+            ...pendingMeta,
+            ...fromCommentLine
+          };
+          continue;
+        }
+        if (line.startsWith("reserved ") || line.startsWith("oneof ")) continue;
+
+        const inlineCommentIndex = line.indexOf("//");
+        const codePart = inlineCommentIndex >= 0 ? line.slice(0, inlineCommentIndex).trim() : line;
+        const inlineComment = inlineCommentIndex >= 0 ? line.slice(inlineCommentIndex + 2).trim() : "";
+        const inlineMeta = this.extractFieldMetaFromComment(inlineComment);
+
+        const m = codePart.match(/^(repeated\s+)?([A-Za-z_][\w.]*)\s+([A-Za-z_]\w*)\s*=\s*\d+\s*(?:\[[^\]]*\])?;/);
         if (!m) continue;
-        fields.push({
+        const mergedMeta = { ...pendingMeta, ...inlineMeta };
+        const nextField: ProtoField = {
           repeated: Boolean(m[1]),
           type: m[2]!.split(".").pop()!,
           name: m[3]!
-        });
+        };
+        if (mergedMeta.label) nextField.label = mergedMeta.label;
+        if (typeof mergedMeta.required === "boolean") nextField.required = mergedMeta.required;
+        if (typeof mergedMeta.pattern === "string") nextField.pattern = mergedMeta.pattern;
+        fields.push(nextField);
+        pendingMeta = {};
       }
       out.set(b.name, { name: b.name, fields });
     }
@@ -184,11 +213,21 @@ export class ProtoFormSyncService implements OnModuleInit {
     const out = new Map<string, EnumDef>();
     const blocks = this.extractBlocks(text, "enum");
     for (const b of blocks) {
-      const values = b.body
-        .split("\n")
-        .map((line) => line.trim())
-        .map((line) => line.match(/^([A-Z][A-Z0-9_]*)\s*=\s*\d+;/)?.[1] ?? null)
-        .filter((v): v is string => Boolean(v));
+      const values: Array<string | { label: string; value: string }> = [];
+      for (const raw of b.body.split("\n")) {
+        const line = raw.trim();
+        if (!line || line.startsWith("//")) continue;
+        const inlineCommentIndex = line.indexOf("//");
+        const codePart = inlineCommentIndex >= 0 ? line.slice(0, inlineCommentIndex).trim() : line;
+        const inlineComment = inlineCommentIndex >= 0 ? line.slice(inlineCommentIndex + 2).trim() : "";
+        const m = codePart.match(/^([A-Z][A-Z0-9_]*)\s*=\s*\d+\s*;/);
+        if (!m?.[1]) continue;
+        const enumKey = m[1];
+        const meta = this.extractEnumValueMetaFromComment(inlineComment);
+        const label = meta.label ?? this.toEnumLabel(enumKey);
+        const value = meta.value ?? enumKey;
+        values.push({ label, value });
+      }
       out.set(b.name, { name: b.name, values });
     }
     return out;
@@ -226,8 +265,24 @@ export class ProtoFormSyncService implements OnModuleInit {
   private removeInnerBlocks(body: string): string {
     let out = "";
     let depth = 0;
+    let inLineComment = false;
     for (let i = 0; i < body.length; i += 1) {
       const ch = body[i]!;
+      const next = i + 1 < body.length ? body[i + 1] : "";
+
+      if (!inLineComment && ch === "/" && next === "/") {
+        inLineComment = true;
+        if (depth === 0) out += "//";
+        i += 1;
+        continue;
+      }
+
+      if (inLineComment) {
+        if (depth === 0) out += ch;
+        if (ch === "\n") inLineComment = false;
+        continue;
+      }
+
       if (ch === "{") {
         depth += 1;
         continue;
@@ -287,10 +342,93 @@ export class ProtoFormSyncService implements OnModuleInit {
     return text.charAt(0).toUpperCase() + text.slice(1);
   }
 
-  private stripComments(input: string): string {
-    return input
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/.*$/gm, "");
+  private toEnumLabel(name: string): string {
+    const normalized = name
+      .replace(/_UNSPECIFIED$/i, "")
+      .replace(/_/g, " ")
+      .trim()
+      .toLowerCase();
+    if (!normalized) return name;
+    return normalized
+      .split(/\s+/g)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+
+  private extractFieldMetaFromComment(comment: string): { label?: string; required?: boolean; pattern?: string } {
+    const result: { label?: string; required?: boolean; pattern?: string } = {};
+    if (!comment) return result;
+    const labelMatch = comment.match(/@label\s*[:=]?\s*(.+?)(?=\s+@[A-Za-z_]\w*|$)/i);
+    if (labelMatch?.[1]) {
+      const rawLabel = labelMatch[1].trim();
+      if (rawLabel) {
+        result.label = rawLabel.replace(/\s*\*+$/, "").trim();
+        if (/\*+\s*$/.test(rawLabel)) result.required = true;
+      }
+    }
+
+    const requiredMatch = comment.match(/@require(?:d)?(?:\s*[:=]?\s*(true|false|1|0|yes|no))?/i);
+    if (requiredMatch) {
+      const token = requiredMatch[1]?.toLowerCase();
+      if (!token) {
+        result.required = true;
+      } else {
+        result.required = token === "true" || token === "1" || token === "yes";
+      }
+    }
+
+    const patternMatch = comment.match(/@(pattern|regex)\s*[:=]?\s*(.+?)(?=\s+@[A-Za-z_]\w*|$)/i);
+    if (patternMatch?.[2]) {
+      const raw = patternMatch[2].trim();
+      const unquoted = raw.replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1");
+      const pattern = unquoted.replace(/\\\\/g, "\\");
+      if (this.isValidRegex(pattern)) result.pattern = pattern;
+    }
+
+    return result;
+  }
+
+  private buildRules(field: ProtoField): Array<{ type: string; value?: string }> {
+    const rules: Array<{ type: string; value?: string }> = [];
+    if (field.pattern) rules.push({ type: "pattern", value: field.pattern });
+    return rules;
+  }
+
+  private isValidRegex(pattern: string): boolean {
+    try {
+      // Validate pattern at parse-time to avoid runtime crashes in UI.
+      // eslint-disable-next-line no-new
+      new RegExp(pattern);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private extractEnumValueMetaFromComment(comment: string): { label?: string; value?: string } {
+    const result: { label?: string; value?: string } = {};
+    if (!comment) return result;
+
+    const labelMatch = comment.match(/@label\s*[:=]?\s*(.+?)(?=\s+@[A-Za-z_]\w*|$)/i);
+    if (labelMatch?.[1]) {
+      const label = labelMatch[1].trim();
+      if (label) result.label = label;
+    }
+
+    const valueMatch = comment.match(/@value\s*[:=]?\s*(.+?)(?=\s+@[A-Za-z_]\w*|$)/i);
+    if (valueMatch?.[1]) {
+      const value = valueMatch[1].trim();
+      if (value) {
+        const unquoted = value.replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1");
+        result.value = unquoted;
+      }
+    }
+
+    return result;
+  }
+
+  private stripBlockComments(input: string): string {
+    return input.replace(/\/\*[\s\S]*?\*\//g, "");
   }
 
   private async ensureAppCollection(appId: string) {

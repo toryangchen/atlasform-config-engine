@@ -94,6 +94,14 @@ pnpm --filter @lowcode/web dev
 pnpm --filter @lowcode/admin dev
 ```
 
+推荐使用根脚本（避免重启 server 影响 admin/web）：
+
+```bash
+pnpm dev:ui             # 同时启动 admin + web
+pnpm dev:server         # 单独启动 server
+pnpm dev:server:restart # 仅重启 3000 端口 server
+```
+
 ## 7. Proto 与应用关系
 
 Proto 文件目录：
@@ -103,6 +111,43 @@ Proto 文件目录：
 - 每新增一个 `*.proto` 文件，Admin 会识别为一个新应用。
 - 例如 `crm.proto` -> `appId=crm`。
 - 当前已提供嵌套对象示例：`profile_app.proto`（含 `object_fields` 多层结构）。
+
+### 7.1 字段注解（已支持）
+
+字段注解支持放在同一行注释中，服务端会解析后写入表单 schema：
+
+- `@label`：字段展示名称
+- `@required` / `@require`：必填
+- `@pattern` / `@regex`：正则校验
+
+示例：
+
+```proto
+message ProfileAppForm {
+  string username = 1; // @label: 用户名 @required: true @pattern: ^[a-zA-Z0-9_]{3,20}$
+  string phone = 2;    // @label: 手机号 @required: true @regex: ^1\\d{10}$
+}
+```
+
+说明：
+- `@required` 也支持无值写法：`@required`（等价 true）。
+- `@label: 名称*` 会自动推断为必填。
+
+### 7.2 Enum 下拉选项注解（已支持）
+
+`select` / `checkbox-group` 可由 enum 直接生成，且每个枚举项可定义 `label/value`：
+
+```proto
+enum Role {
+  ROLE_UNSPECIFIED = 0; // @label: 请选择角色 @value: ""
+  ENGINEER = 1;         // @label: 工程师 @value: engineer
+  DESIGNER = 2;         // @label: 设计师 @value: designer
+}
+```
+
+前端最终选项格式：
+- `{ label: "工程师", value: "engineer" }`
+- `{ label: "设计师", value: "designer" }`
 
 ## 8. API 概览（V1）
 
@@ -162,6 +207,10 @@ pnpm migrate:form-fields:apply
 ```bash
 pnpm typecheck
 pnpm build
+pnpm dev
+pnpm dev:ui
+pnpm dev:server
+pnpm dev:server:restart
 pnpm proto:gen
 pnpm migrate:form-fields:dry
 pnpm migrate:form-fields:apply

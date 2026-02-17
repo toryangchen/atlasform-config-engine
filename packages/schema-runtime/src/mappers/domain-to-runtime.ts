@@ -5,6 +5,13 @@ export function domainToRuntime(input: DomainFormSchema): RuntimeFormSchema {
     formId: input.formName,
     version: input.version,
     fields: input.fields.map((field) => {
+      const hasRequired = field.rules.some((rule) => rule.type === "required");
+      const runtimeRules = hasRequired
+        ? field.rules
+        : field.required
+          ? [{ type: "required" as const }, ...field.rules]
+          : field.rules;
+
       const base = {
         id: field.key,
         componentType: field.fieldType,
@@ -14,7 +21,7 @@ export function domainToRuntime(input: DomainFormSchema): RuntimeFormSchema {
           itemType: field.itemType,
           objectFields: field.objectFields
         },
-        rules: field.rules,
+        rules: runtimeRules,
         ...(field.fieldType === "checkbox" || field.fieldType === "switch" ? { valuePropName: "checked" } : {})
       };
 

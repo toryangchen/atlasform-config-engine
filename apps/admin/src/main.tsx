@@ -71,6 +71,24 @@ componentRegistry.registerComponent("object", ObjectDrawerField);
 componentRegistry.registerComponent("array", ArrayStringTableField);
 componentRegistry.registerComponent("array<object>", ArrayObjectTableField);
 
+function normalizeOptions(input: unknown): Array<string | { label: string; value: string }> | null {
+  if (!Array.isArray(input)) return null;
+  const out: Array<string | { label: string; value: string }> = [];
+  for (const item of input) {
+    if (typeof item === "string") {
+      out.push(item);
+      continue;
+    }
+    if (item && typeof item === "object") {
+      const record = item as Record<string, unknown>;
+      if (typeof record.label === "string" && typeof record.value === "string") {
+        out.push({ label: record.label, value: record.value });
+      }
+    }
+  }
+  return out.length > 0 ? out : null;
+}
+
 function parseDomainField(raw: Record<string, unknown>): DomainFieldSchema | null {
   const key = typeof raw.key === "string" ? raw.key : typeof raw.name === "string" ? raw.name : null;
   if (!key) return null;
@@ -84,7 +102,7 @@ function parseDomainField(raw: Record<string, unknown>): DomainFieldSchema | nul
         : typeof raw.type === "string"
           ? raw.type
           : "string";
-  const options = Array.isArray(raw.options) ? (raw.options as string[]) : null;
+  const options = normalizeOptions(raw.options);
   const itemType =
     raw.itemType === "string" || raw.itemType === "number" || raw.itemType === "boolean" || raw.itemType === "object"
       ? raw.itemType
@@ -155,11 +173,12 @@ function toRuntimeSchema(form: FormItem | undefined): RuntimeFormSchema | null {
 
   runtime.fields = runtime.fields.map((field) => {
     if (field.componentType === "select" || field.componentType === "checkbox-group") {
+      const normalizedOptions = normalizeOptions(field.props.options);
       return {
         ...field,
         props: {
           ...field.props,
-          options: (Array.isArray(field.props.options) ? (field.props.options as string[]) : []).map((v) => ({ label: v, value: v }))
+          options: normalizedOptions ?? []
         }
       };
     }
@@ -554,7 +573,13 @@ function DataFormPage({ mode }: { mode: "new" | "edit" }) {
       api.error("当前应用没有可用 form");
       return;
     }
-    const values = editorForm.getFieldsValue(true) as Record<string, unknown>;
+    let values: Record<string, unknown>;
+    try {
+      values = (await editorForm.validateFields()) as Record<string, unknown>;
+    } catch {
+      api.error("请先修正表单校验错误");
+      return;
+    }
 
     setLoading(true);
     try {

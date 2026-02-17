@@ -3,16 +3,16 @@ syntax = "proto3";
 package lowcode.profile;
 
 enum Role {
-  ROLE_UNSPECIFIED = 0;
-  ENGINEER = 1;
-  DESIGNER = 2;
-  PM = 3;
+  ROLE_UNSPECIFIED = 0; // @label: 请选择角色 @value: ""
+  ENGINEER = 1; // @label: 工程师 @value: engineer
+  DESIGNER = 2; // @label: 设计师 @value: designer
+  PM = 3; // @label: 产品经理 @value: pm
 }
 
 enum GenderType {
-  GENDER_TYPE_UNSPECIFIED = 0;
-  FEMALE = 1;
-  MALE = 2;
+  GENDER_TYPE_UNSPECIFIED = 0; // @label: 请选择性别 @value: ""
+  FEMALE = 1; // @label: 女 @value: female
+  MALE = 2; // @label: 男 @value: male
 }
 
 message ProfileAddress {
@@ -32,7 +32,9 @@ message ExperienceItem {
 
 // Root message for admin runtime form generation.
 message ProfileAppForm {
-  string full_name = 1;
+  string full_name = 1; // @label: 全名* @required: true
+  string username = 9; // @label: 用户名 @required: true @pattern: ^[a-zA-Z0-9_]{3,20}$
+  string phone = 10; // @label: 手机号 @regex: ^1\\d{10}$
   int32 age = 2;
   Role role = 3;
   GenderType gender = 4;

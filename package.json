@@ -5,6 +5,9 @@
   "packageManager": "pnpm@10.4.1",
   "scripts": {
     "dev": "turbo run dev --parallel",
+    "dev:ui": "turbo run dev --parallel --filter=@lowcode/admin --filter=@lowcode/web",
+    "dev:server": "pnpm --filter @lowcode/server dev",
+    "dev:server:restart": "sh -c 'PIDS=$(lsof -tiTCP:3000 -sTCP:LISTEN || true); if [ -n \"$PIDS\" ]; then kill $PIDS || true; sleep 1; PIDS2=$(lsof -tiTCP:3000 -sTCP:LISTEN || true); if [ -n \"$PIDS2\" ]; then kill -9 $PIDS2 || true; fi; fi; pnpm --filter @lowcode/server dev'",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
@@ -15,7 +18,7 @@
   "devDependencies": {
     "@types/node": "^22.13.4",
     "mongoose": "^8.12.1",
-    "turbo": "^2.4.2",
+    "turbo": "^2.8.9",
     "typescript": "^5.7.3"
   }
 }
