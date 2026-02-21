@@ -15,7 +15,6 @@ import {
   Popconfirm,
   Select,
   Space,
-  Statistic,
   Switch,
   Table,
   Tag,
@@ -70,6 +69,20 @@ componentRegistry.registerComponent("switch", Switch);
 componentRegistry.registerComponent("object", ObjectDrawerField);
 componentRegistry.registerComponent("array", ArrayStringTableField);
 componentRegistry.registerComponent("array<object>", ArrayObjectTableField);
+
+function formatAppLabel(appId: string): string {
+  return appId
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function extractSchemaRoot(raw: Record<string, unknown>): Record<string, unknown> {
+  if (Array.isArray(raw.fields)) return raw;
+  if (raw.schema && typeof raw.schema === "object") return raw.schema as Record<string, unknown>;
+  return raw;
+}
 
 function normalizeOptions(input: unknown): Array<string | { label: string; value: string }> | null {
   if (!Array.isArray(input)) return null;
@@ -182,8 +195,7 @@ function formatListCellValue(value: unknown, fieldType: string): string {
 
 function toDomainSchema(form: FormItem): DomainFormSchema | null {
   const raw = form.schema as Record<string, unknown>;
-  const schemaRoot =
-    Array.isArray(raw.fields) ? raw : raw.schema && typeof raw.schema === "object" ? (raw.schema as Record<string, unknown>) : raw;
+  const schemaRoot = extractSchemaRoot(raw);
   const rawFields = schemaRoot.fields;
   if (!Array.isArray(rawFields)) return null;
 
@@ -226,29 +238,8 @@ function toRuntimeSchema(form: FormItem | undefined): RuntimeFormSchema | null {
 function hasRenderableSchema(form: FormItem | undefined): boolean {
   if (!form) return false;
   const raw = form.schema as Record<string, unknown>;
-  return Boolean(Array.isArray(raw.fields) || (raw.schema && typeof raw.schema === "object" && Array.isArray((raw.schema as any).fields)));
+  return Array.isArray(extractSchemaRoot(raw).fields);
 }
-
-const PageHero: React.FC<{ title: string; subtitle: string; actions?: React.ReactNode; className?: string }> = ({
-  title,
-  subtitle,
-  actions,
-  className
-}) => {
-  return (
-    <Card className={`hero-card ${className ?? ""}`.trim()} bordered={false}>
-      <div className="hero-content">
-        <div>
-          <Typography.Title level={3} className="hero-title">
-            {title}
-          </Typography.Title>
-          <Typography.Paragraph className="hero-subtitle">{subtitle}</Typography.Paragraph>
-        </div>
-        <div>{actions}</div>
-      </div>
-    </Card>
-  );
-};
 
 function AppLayout() {
   const navigate = useNavigate();
@@ -459,12 +450,7 @@ function DataListPage() {
   }, [load]);
 
   const appLabel = React.useMemo(
-    () =>
-      appId
-        .split(/[-_]/g)
-        .filter(Boolean)
-        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-        .join(" "),
+    () => formatAppLabel(appId),
     [appId]
   );
 
@@ -594,12 +580,7 @@ function DataFormPage({ mode }: { mode: "new" | "edit" }) {
   const { forms, rows, load } = useAppData(appId);
   const [loading, setLoading] = React.useState(false);
   const appLabel = React.useMemo(
-    () =>
-      appId
-        .split(/[-_]/g)
-        .filter(Boolean)
-        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-        .join(" "),
+    () => formatAppLabel(appId),
     [appId]
   );
 
