@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package lowcode.meta;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.FieldOptions {
+  string ui_label = 51001;
+  bool ui_required = 51002;
+  string ui_pattern = 51003;
+  bool ui_list = 51004;
+  bool ui_unique = 51005;
+  int32 ui_list_order = 51006;
+}
+
+extend google.protobuf.EnumValueOptions {
+  string ui_enum_label = 51101;
+  string ui_enum_value = 51102;
+}

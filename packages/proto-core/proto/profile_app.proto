@@ -1,18 +1,40 @@
 syntax = "proto3";
 
 package lowcode.profile;
+import "common/options.proto";
 
 enum Role {
-  ROLE_UNSPECIFIED = 0; // @label: 请选择角色 @value: ""
-  ENGINEER = 1; // @label: 工程师 @value: engineer
-  DESIGNER = 2; // @label: 设计师 @value: designer
-  PM = 3; // @label: 产品经理 @value: pm
+  ROLE_UNSPECIFIED = 0 [
+    (lowcode.meta.ui_enum_label) = "请选择角色",
+    (lowcode.meta.ui_enum_value) = ""
+  ];
+  ENGINEER = 1 [
+    (lowcode.meta.ui_enum_label) = "工程师",
+    (lowcode.meta.ui_enum_value) = "engineer"
+  ];
+  DESIGNER = 2 [
+    (lowcode.meta.ui_enum_label) = "设计师",
+    (lowcode.meta.ui_enum_value) = "designer"
+  ];
+  PM = 3 [
+    (lowcode.meta.ui_enum_label) = "产品经理",
+    (lowcode.meta.ui_enum_value) = "pm"
+  ];
 }
 
 enum GenderType {
-  GENDER_TYPE_UNSPECIFIED = 0; // @label: 请选择性别 @value: ""
-  FEMALE = 1; // @label: 女 @value: female
-  MALE = 2; // @label: 男 @value: male
+  GENDER_TYPE_UNSPECIFIED = 0 [
+    (lowcode.meta.ui_enum_label) = "请选择性别",
+    (lowcode.meta.ui_enum_value) = ""
+  ];
+  FEMALE = 1 [
+    (lowcode.meta.ui_enum_label) = "女",
+    (lowcode.meta.ui_enum_value) = "female"
+  ];
+  MALE = 2 [
+    (lowcode.meta.ui_enum_label) = "男",
+    (lowcode.meta.ui_enum_value) = "male"
+  ];
 }
 
 message ProfileAddress {
@@ -32,14 +54,43 @@ message ExperienceItem {
 
 // Root message for admin runtime form generation.
 message ProfileAppForm {
-  string full_name = 1; // @label: 全名* @required: true
-  string username = 9; // @label: 用户名 @required: true @pattern: ^[a-zA-Z0-9_]{3,20}$
-  string phone = 10; // @label: 手机号 @regex: ^1\\d{10}$
-  int32 age = 2;
-  Role role = 3;
-  GenderType gender = 4;
+  string username = 9 [
+    (lowcode.meta.ui_label) = "用户名",
+    (lowcode.meta.ui_required) = true,
+    (lowcode.meta.ui_pattern) = "^[a-zA-Z0-9_]{3,20}$",
+    (lowcode.meta.ui_list) = true,
+    (lowcode.meta.ui_unique) = true
+  ];
+  string full_name = 1 [
+    (lowcode.meta.ui_label) = "全名",
+    (lowcode.meta.ui_required) = true,
+    (lowcode.meta.ui_list) = true
+  ];
+  string phone = 10 [
+    (lowcode.meta.ui_label) = "手机号",
+    (lowcode.meta.ui_pattern) = "^1\\d{10}$",
+    (lowcode.meta.ui_list) = true
+  ];
+  int32 age = 2 [
+    (lowcode.meta.ui_label) = "年龄",
+    (lowcode.meta.ui_list) = true
+  ];
+  Role role = 3 [
+    (lowcode.meta.ui_label) = "角色",
+    (lowcode.meta.ui_list) = true
+  ];
+  GenderType gender = 4 [
+    (lowcode.meta.ui_label) = "性别",
+    (lowcode.meta.ui_list) = true
+  ];
   bool agree_policy = 5;
   repeated string tags = 6;
-  ProfileObject profile = 7;
-  repeated ExperienceItem experiences = 8;
+  ProfileObject profile = 7 [
+    (lowcode.meta.ui_label) = "档案",
+    (lowcode.meta.ui_list) = true
+  ];
+  repeated ExperienceItem experiences = 8 [
+    (lowcode.meta.ui_label) = "经历",
+    (lowcode.meta.ui_list) = true
+  ];
 }

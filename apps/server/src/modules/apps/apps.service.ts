@@ -57,6 +57,10 @@ export class AppsService {
     return this.dataService.removeById(tenantId, appId, dataId);
   }
 
+  getDataByUniqueKey(tenantId: string, appId: string, uniqueValue: string, formName?: string) {
+    return this.dataService.getByUniqueKey(tenantId, appId, uniqueValue, formName);
+  }
+
   private resolveProtoDir(): string | null {
     const candidates = [
       resolve(process.cwd(), "../../packages/proto-core/proto"),

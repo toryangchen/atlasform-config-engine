@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
 import { CreateAppDataDto } from "./dto/create-app-data.dto";
 import { UpdateAppDataDto } from "./dto/update-app-data.dto";
 import { AppsService } from "./apps.service";
@@ -20,6 +20,16 @@ export class AppsController {
   @Get(":appId/data")
   listDataByApp(@Headers("x-tenant-id") tenantId = "demo-tenant", @Param("appId") appId: string) {
     return this.appsService.listDataByApp(tenantId, appId);
+  }
+
+  @Get(":appId/data/unique/:uniqueValue")
+  getDataByUniqueKey(
+    @Headers("x-tenant-id") tenantId = "demo-tenant",
+    @Param("appId") appId: string,
+    @Param("uniqueValue") uniqueValue: string,
+    @Query("formName") formName?: string
+  ) {
+    return this.appsService.getDataByUniqueKey(tenantId, appId, uniqueValue, formName);
   }
 
   @Post(":appId/data")

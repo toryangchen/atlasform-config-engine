@@ -119,6 +119,18 @@ function parseDomainField(raw: Record<string, unknown>): DomainFieldSchema | nul
     raw.itemObjectFields ??
     raw.item_object_fields ??
     ((raw.metadata as Record<string, unknown> | undefined)?.objectFields ?? null);
+  const listInTableRaw =
+    raw.listInTable ??
+    raw.list_in_table ??
+    raw.listVisible ??
+    raw.list_visible ??
+    ((raw.metadata as Record<string, unknown> | undefined)?.listInTable ?? null);
+  const listInTable = typeof listInTableRaw === "boolean" ? listInTableRaw : false;
+  const uniqueKeyRaw =
+    raw.uniqueKey ??
+    raw.unique_key ??
+    ((raw.metadata as Record<string, unknown> | undefined)?.uniqueKey ?? null);
+  const uniqueKey = typeof uniqueKeyRaw === "boolean" ? uniqueKeyRaw : false;
 
   const objectFields = Array.isArray(objectFieldsRaw)
     ? objectFieldsRaw
@@ -138,11 +150,34 @@ function parseDomainField(raw: Record<string, unknown>): DomainFieldSchema | nul
     label,
     fieldType,
     required: Boolean(raw.required),
+    listInTable,
+    uniqueKey,
     ...(options ? { options } : {}),
     ...(itemType ? { itemType } : {}),
     ...(objectFields && objectFields.length > 0 ? { objectFields } : {}),
     rules
   };
+}
+
+function formatListCellValue(value: unknown, fieldType: string): string {
+  if (value === null || value === undefined) return "-";
+  if (fieldType === "array<object>") {
+    if (!Array.isArray(value)) return "-";
+    if (value.length === 0) return "[]";
+    const first = value[0];
+    const head = first && typeof first === "object" ? JSON.stringify(first) : String(first);
+    return `[${value.length}] ${head}`;
+  }
+  if (fieldType === "object") {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return "-";
+    return JSON.stringify(value);
+  }
+  if (fieldType === "array") {
+    if (!Array.isArray(value)) return String(value);
+    return value.join(", ");
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }
 
 function toDomainSchema(form: FormItem): DomainFormSchema | null {
@@ -416,7 +451,7 @@ function DataListPage() {
   const { appId = "" } = useParams();
   const [api, contextHolder] = message.useMessage();
   const navigate = useNavigate();
-  const { rows, loading, load } = useAppData(appId);
+  const { forms, rows, loading, load } = useAppData(appId);
   const [query, setQuery] = React.useState("");
 
   React.useEffect(() => {
@@ -446,15 +481,32 @@ function DataListPage() {
     await load();
   };
 
+  const formDomains = React.useMemo(() => {
+    const map = new Map<string, DomainFormSchema>();
+    for (const form of forms) {
+      const parsed = toDomainSchema(form);
+      if (parsed) map.set(form.formName, parsed);
+    }
+    return map;
+  }, [forms]);
+
+  const listFields = React.useMemo(() => {
+    const primary = rows[0]?.formName ? formDomains.get(rows[0].formName) : undefined;
+    if (primary) return primary.fields.filter((f) => f.listInTable);
+    const first = formDomains.values().next().value as DomainFormSchema | undefined;
+    return first ? first.fields.filter((f) => f.listInTable) : [];
+  }, [formDomains, rows]);
+
   const columns: ColumnsType<DataItem> = [
-    { title: "ID", dataIndex: "_id", key: "_id", width: 180 },
-    { title: "Form", dataIndex: "formName", key: "formName", width: 180 },
-    { title: "Version", dataIndex: "version", key: "version", width: 100 },
-    {
-      title: "Data 预览",
-      key: "data",
-      render: (_, row) => <Typography.Text className="json-preview">{JSON.stringify(row.data, null, 2)}</Typography.Text>
-    },
+    ...listFields.map((field) => ({
+      title: field.label,
+      key: field.key,
+      render: (_: unknown, row: DataItem) => (
+        <Typography.Text ellipsis={{ tooltip: true }}>
+          {formatListCellValue((row.data ?? {})[field.key], field.fieldType)}
+        </Typography.Text>
+      )
+    })),
     {
       title: "Updated",
       dataIndex: "updatedAt",
@@ -466,6 +518,7 @@ function DataListPage() {
       title: "操作",
       key: "actions",
       width: 170,
+      fixed: "right",
       render: (_, row) => (
         <Space>
           <Button type="link" onClick={() => navigate(`/apps/${appId}/data/${row._id}/edit`)}>
@@ -485,10 +538,11 @@ function DataListPage() {
     const keyword = query.trim().toLowerCase();
     if (!keyword) return rows;
     return rows.filter((row) => {
-      const haystack = [row._id, row.formName, row.version, JSON.stringify(row.data ?? {})].join(" ").toLowerCase();
+      const listData = listFields.map((field) => formatListCellValue((row.data ?? {})[field.key], field.fieldType));
+      const haystack = [...listData, JSON.stringify(row.data ?? {})].join(" ").toLowerCase();
       return haystack.includes(keyword);
     });
-  }, [rows, query]);
+  }, [rows, query, listFields]);
 
   return (
     <div className="page-section">
@@ -506,7 +560,7 @@ function DataListPage() {
         <div className="list-toolbar">
           <Input.Search
             allowClear
-            placeholder="搜索 ID / Form / Version / 数据内容"
+            placeholder="搜索表格字段 / 数据内容"
             className="list-toolbar-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -520,7 +574,13 @@ function DataListPage() {
             </Button>
           </Space>
         </div>
-        <Table rowKey="_id" loading={loading} dataSource={filteredRows} columns={columns} />
+        <Table
+          rowKey="_id"
+          loading={loading}
+          dataSource={filteredRows}
+          columns={columns}
+          scroll={{ x: "max-content" }}
+        />
       </Card>
     </div>
   );
@@ -566,7 +626,25 @@ function DataFormPage({ mode }: { mode: "new" | "edit" }) {
     return forms.find((f) => f.formName === resolvedFormName && hasRenderableSchema(f)) ?? exact;
   }, [forms, resolvedFormName]);
 
-  const runtimeSchema = React.useMemo(() => toRuntimeSchema(selectedForm), [selectedForm]);
+  const runtimeSchema = React.useMemo(() => {
+    const schema = toRuntimeSchema(selectedForm);
+    if (!schema) return null;
+    if (mode !== "edit") return schema;
+    return {
+      ...schema,
+      fields: schema.fields.map((field) => {
+        const isUnique = Boolean((field.props as Record<string, unknown>).uniqueKey);
+        if (!isUnique) return field;
+        return {
+          ...field,
+          props: {
+            ...field.props,
+            disabled: true
+          }
+        };
+      })
+    };
+  }, [selectedForm, mode]);
 
   const save = async () => {
     if (!resolvedFormName) {

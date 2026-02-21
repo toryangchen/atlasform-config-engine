@@ -10,13 +10,9 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 export const protobufPackage = "lowcode.profile";
 
 export enum Role {
-  /** ROLE_UNSPECIFIED - @label: 请选择角色 @value: "" */
   ROLE_UNSPECIFIED = 0,
-  /** ENGINEER - @label: 工程师 @value: engineer */
   ENGINEER = 1,
-  /** DESIGNER - @label: 设计师 @value: designer */
   DESIGNER = 2,
-  /** PM - @label: 产品经理 @value: pm */
   PM = 3,
   UNRECOGNIZED = -1,
 }
@@ -59,11 +55,8 @@ export function roleToJSON(object: Role): string {
 }
 
 export enum GenderType {
-  /** GENDER_TYPE_UNSPECIFIED - @label: 请选择性别 @value: "" */
   GENDER_TYPE_UNSPECIFIED = 0,
-  /** FEMALE - @label: 女 @value: female */
   FEMALE = 1,
-  /** MALE - @label: 男 @value: male */
   MALE = 2,
   UNRECOGNIZED = -1,
 }
@@ -117,11 +110,8 @@ export interface ExperienceItem {
 
 /** Root message for admin runtime form generation. */
 export interface ProfileAppForm {
-  /** @label: 全名* @required: true */
-  fullName: string;
-  /** @label: 用户名 @required: true @pattern: ^[a-zA-Z0-9_]{3,20}$ */
   username: string;
-  /** @label: 手机号 @regex: ^1\\d{10}$ */
+  fullName: string;
   phone: string;
   age: number;
   role: Role;
@@ -364,8 +354,8 @@ export const ExperienceItem: MessageFns<ExperienceItem> = {
 
 function createBaseProfileAppForm(): ProfileAppForm {
   return {
-    fullName: "",
     username: "",
+    fullName: "",
     phone: "",
     age: 0,
     role: 0,
@@ -379,11 +369,11 @@ function createBaseProfileAppForm(): ProfileAppForm {
 
 export const ProfileAppForm: MessageFns<ProfileAppForm> = {
   encode(message: ProfileAppForm, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.fullName !== "") {
-      writer.uint32(10).string(message.fullName);
-    }
     if (message.username !== "") {
       writer.uint32(74).string(message.username);
+    }
+    if (message.fullName !== "") {
+      writer.uint32(10).string(message.fullName);
     }
     if (message.phone !== "") {
       writer.uint32(82).string(message.phone);
@@ -419,20 +409,20 @@ export const ProfileAppForm: MessageFns<ProfileAppForm> = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.fullName = reader.string();
-          continue;
-        }
         case 9: {
           if (tag !== 74) {
             break;
           }
 
           message.username = reader.string();
+          continue;
+        }
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.fullName = reader.string();
           continue;
         }
         case 10: {
@@ -510,12 +500,12 @@ export const ProfileAppForm: MessageFns<ProfileAppForm> = {
 
   fromJSON(object: any): ProfileAppForm {
     return {
+      username: isSet(object.username) ? globalThis.String(object.username) : "",
       fullName: isSet(object.fullName)
         ? globalThis.String(object.fullName)
         : isSet(object.full_name)
         ? globalThis.String(object.full_name)
         : "",
-      username: isSet(object.username) ? globalThis.String(object.username) : "",
       phone: isSet(object.phone) ? globalThis.String(object.phone) : "",
       age: isSet(object.age) ? globalThis.Number(object.age) : 0,
       role: isSet(object.role) ? roleFromJSON(object.role) : 0,
@@ -535,11 +525,11 @@ export const ProfileAppForm: MessageFns<ProfileAppForm> = {
 
   toJSON(message: ProfileAppForm): unknown {
     const obj: any = {};
-    if (message.fullName !== "") {
-      obj.fullName = message.fullName;
-    }
     if (message.username !== "") {
       obj.username = message.username;
+    }
+    if (message.fullName !== "") {
+      obj.fullName = message.fullName;
     }
     if (message.phone !== "") {
       obj.phone = message.phone;
@@ -573,8 +563,8 @@ export const ProfileAppForm: MessageFns<ProfileAppForm> = {
   },
   fromPartial<I extends Exact<DeepPartial<ProfileAppForm>, I>>(object: I): ProfileAppForm {
     const message = createBaseProfileAppForm();
-    message.fullName = object.fullName ?? "";
     message.username = object.username ?? "";
+    message.fullName = object.fullName ?? "";
     message.phone = object.phone ?? "";
     message.age = object.age ?? 0;
     message.role = object.role ?? 0;

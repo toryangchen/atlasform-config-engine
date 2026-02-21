@@ -14,12 +14,18 @@ if ! command -v protoc >/dev/null 2>&1; then
   exit 1
 fi
 
+PROTO_FILES="$(find "$PROTO_DIR" -type f -name '*.proto' | sort)"
+if [ -z "$PROTO_FILES" ]; then
+  echo "No .proto files found in $PROTO_DIR" >&2
+  exit 1
+fi
+
 pnpm exec protoc \
   --plugin=./node_modules/.bin/protoc-gen-ts_proto \
   --ts_proto_out="$OUT_DIR" \
   --ts_proto_opt=esModuleInterop=true,outputServices=none,useOptionals=messages \
   -I "$PROTO_DIR" \
-  "$PROTO_DIR"/*.proto
+  $PROTO_FILES
 
 rsync -a --delete "$OUT_DIR/" "$SHARED_DIR/"
 echo "proto generated and synced to shared-types"

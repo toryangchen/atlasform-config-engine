@@ -231,6 +231,14 @@ body {
   border-radius: 12px;
 }
 
+.panel-card .ant-table-wrapper {
+  max-width: 100%;
+}
+
+.panel-card .ant-table-content {
+  overflow-x: auto !important;
+}
+
 .ant-table-wrapper .ant-table-thead > tr > th {
   background: #f5fbfa;
   color: #30435c;

@@ -11,6 +11,8 @@ export interface DomainFieldSchema {
   label: string;
   fieldType: string;
   required: boolean;
+  listInTable?: boolean;
+  uniqueKey?: boolean;
   options?: Array<string | { label: string; value: string }>;
   itemType?: "string" | "number" | "boolean" | "object";
   objectFields?: DomainFieldSchema[];

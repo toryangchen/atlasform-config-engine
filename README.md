@@ -112,36 +112,54 @@ Proto 文件目录：
 - 例如 `crm.proto` -> `appId=crm`。
 - 当前已提供嵌套对象示例：`profile_app.proto`（含 `object_fields` 多层结构）。
 
-### 7.1 字段注解（已支持）
+### 7.1 FieldOptions（推荐）
 
-字段注解支持放在同一行注释中，服务端会解析后写入表单 schema：
+公共扩展定义：
+- `packages/proto-core/proto/common/options.proto`
 
-- `@label`：字段展示名称
-- `@required` / `@require`：必填
-- `@pattern` / `@regex`：正则校验
+通过 `google.protobuf.FieldOptions` 扩展统一配置 UI 元数据（强类型、可校验）：
+- `(lowcode.meta.ui_label)`：字段展示名称
+- `(lowcode.meta.ui_required)`：必填
+- `(lowcode.meta.ui_pattern)`：正则校验
+- `(lowcode.meta.ui_list)`：是否展示在数据列表表格中
+- `(lowcode.meta.ui_unique)`：应用内唯一键（初始化后不可修改）
 
 示例：
 
 ```proto
+import "common/options.proto";
+
 message ProfileAppForm {
-  string username = 1; // @label: 用户名 @required: true @pattern: ^[a-zA-Z0-9_]{3,20}$
-  string phone = 2;    // @label: 手机号 @required: true @regex: ^1\\d{10}$
+  string username = 1 [
+    (lowcode.meta.ui_label) = "用户名",
+    (lowcode.meta.ui_required) = true,
+    (lowcode.meta.ui_pattern) = "^[a-zA-Z0-9_]{3,20}$",
+    (lowcode.meta.ui_list) = true,
+    (lowcode.meta.ui_unique) = true
+  ];
 }
 ```
 
 说明：
-- `@required` 也支持无值写法：`@required`（等价 true）。
-- `@label: 名称*` 会自动推断为必填。
+- `ui_unique=true` 后，后续编辑时该字段不可修改；保存会在当前 app 下做唯一性校验。
+- 旧注释风格（`@label/@required/@pattern/...`）仍兼容，但建议逐步迁移到 FieldOptions。
 
-### 7.2 Enum 下拉选项注解（已支持）
+### 7.2 EnumValueOptions（推荐）
 
 `select` / `checkbox-group` 可由 enum 直接生成，且每个枚举项可定义 `label/value`：
 
 ```proto
+import "common/options.proto";
+
 enum Role {
-  ROLE_UNSPECIFIED = 0; // @label: 请选择角色 @value: ""
-  ENGINEER = 1;         // @label: 工程师 @value: engineer
-  DESIGNER = 2;         // @label: 设计师 @value: designer
+  ROLE_UNSPECIFIED = 0 [
+    (lowcode.meta.ui_enum_label) = "请选择角色",
+    (lowcode.meta.ui_enum_value) = ""
+  ];
+  ENGINEER = 1 [
+    (lowcode.meta.ui_enum_label) = "工程师",
+    (lowcode.meta.ui_enum_value) = "engineer"
+  ];
 }
 ```
 
@@ -155,6 +173,7 @@ enum Role {
 GET    /apps
 GET    /apps/:appId/forms
 GET    /apps/:appId/data
+GET    /apps/:appId/data/unique/:uniqueValue
 POST   /apps/:appId/data
 PATCH  /apps/:appId/data/:dataId
 DELETE /apps/:appId/data/:dataId
