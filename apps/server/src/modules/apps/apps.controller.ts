@@ -18,8 +18,13 @@ export class AppsController {
   }
 
   @Get(":appId/data")
-  listDataByApp(@Headers("x-tenant-id") tenantId = "demo-tenant", @Param("appId") appId: string) {
-    return this.appsService.listDataByApp(tenantId, appId);
+  listDataByApp(
+    @Headers("x-tenant-id") tenantId = "demo-tenant",
+    @Param("appId") appId: string,
+    @Query("scope") scope?: "active" | "deleted" | "all"
+  ) {
+    const resolved = scope === "deleted" || scope === "all" ? scope : "active";
+    return this.appsService.listDataByApp(tenantId, appId, resolved);
   }
 
   @Get(":appId/data/unique/:uniqueValue")
@@ -49,6 +54,15 @@ export class AppsController {
     @Body() body: UpdateAppDataDto
   ) {
     return this.appsService.updateDataInApp(tenantId, appId, dataId, body);
+  }
+
+  @Post(":appId/data/:dataId/publish")
+  publishDataToPrd(
+    @Headers("x-tenant-id") tenantId = "demo-tenant",
+    @Param("appId") appId: string,
+    @Param("dataId") dataId: string
+  ) {
+    return this.appsService.publishDataToPrd(tenantId, appId, dataId);
   }
 
   @Delete(":appId/data/:dataId")

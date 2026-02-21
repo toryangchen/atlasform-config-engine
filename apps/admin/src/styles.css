@@ -170,7 +170,7 @@ body {
 
 .list-toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   gap: 12px;
   margin-bottom: 14px;
@@ -178,6 +178,10 @@ body {
 
 .list-toolbar-search {
   width: min(480px, 55vw);
+}
+
+.list-toolbar-actions {
+  margin-left: auto;
 }
 
 .page-section {
@@ -254,6 +258,58 @@ body {
   font-size: 12px;
 }
 
+.publish-json-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.publish-json-status {
+  display: flex;
+  gap: 8px;
+}
+
+.publish-json-diff {
+  height: min(60vh, calc(100vh - 320px));
+  overflow: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.publish-json-diff .diff-container {
+  margin: 0;
+}
+
+.publish-json-diff table {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+}
+
+.publish-diff-modal-root .ant-modal {
+  max-width: min(96vw, 1400px);
+  margin: 0 auto;
+  padding-bottom: 0;
+}
+
+.publish-diff-modal-root .ant-modal-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.publish-diff-modal-root .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+}
+
+.publish-diff-modal-root .ant-modal-body {
+  overflow: auto;
+  max-height: calc(100vh - 220px);
+}
+
 @media (max-width: 980px) {
   .admin-sider {
     position: fixed !important;
@@ -306,5 +362,9 @@ body {
   .form-inline-actions .ant-space {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .publish-json-diff {
+    height: min(52vh, calc(100vh - 300px));
   }
 }

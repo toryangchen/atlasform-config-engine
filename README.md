@@ -176,6 +176,7 @@ GET    /apps/:appId/data
 GET    /apps/:appId/data/unique/:uniqueValue
 POST   /apps/:appId/data
 PATCH  /apps/:appId/data/:dataId
+POST   /apps/:appId/data/:dataId/publish
 DELETE /apps/:appId/data/:dataId
 
 POST   /forms
@@ -186,6 +187,16 @@ POST   /forms/:formName/publish
 POST   /data/:formName/:version
 GET    /data/:formName
 ```
+
+`GET /apps/:appId/data` 支持查询参数：
+- `scope=active`（默认，仅正常数据）
+- `scope=deleted`（仅已删除数据）
+- `scope=all`（全部）
+
+删除语义（V1）：
+- `DELETE /apps/:appId/data/:dataId` 为软删除：该记录在列表和 unique 查询中不可见（视为 dev/prd 均不可查）。
+- 软删除后，若进入同一条记录的编辑页并再次提交，将恢复为 dev 版本。
+- 恢复时不会自动恢复 prd 快照，需要再次点击“发布”才会更新 prd。
 
 ## 9. 数据模型（Mongo）
 
@@ -201,9 +212,13 @@ GET    /data/:formName
 ### form_data
 - tenantId
 - appId
-- formName
-- version
-- data
+- formName (dev)
+- version (dev)
+- data (dev)
+- prdFormName (published snapshot)
+- prdVersion (published snapshot)
+- prdData (published snapshot)
+- prdUpdatedAt
 - createdAt / updatedAt
 
 ## 10. 历史脏数据迁移（重要）

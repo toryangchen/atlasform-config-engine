@@ -10,6 +10,11 @@ interface AppDataDocument {
   formName: string;
   version: string;
   data: Record<string, unknown>;
+  prdFormName?: string;
+  prdVersion?: string;
+  prdData?: Record<string, unknown>;
+  prdUpdatedAt?: Date;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,8 +44,14 @@ export class DataService {
     return this.listByApp(tenantId, form.appId);
   }
 
-  async listByApp(tenantId: string, appId: string) {
-    const rows = (await this.collection(appId).find({ tenantId }).sort({ createdAt: -1 }).toArray()) as AppDataDocument[];
+  async listByApp(tenantId: string, appId: string, scope: "active" | "deleted" | "all" = "active") {
+    const query: Record<string, unknown> = { tenantId };
+    if (scope === "active") query.deletedAt = { $exists: false };
+    if (scope === "deleted") query.deletedAt = { $exists: true };
+    const rows = (await this.collection(appId)
+      .find(query)
+      .sort({ createdAt: -1 })
+      .toArray()) as AppDataDocument[];
     return rows.map((row) => this.toResponse(appId, row));
   }
 
@@ -85,6 +96,7 @@ export class DataService {
     if (!current) throw new NotFoundException("Data not found");
 
     const patch: Record<string, unknown> = {};
+    const unsetPatch: Record<string, 1> = {};
     const nextData = input.data ?? current.data;
     if (input.data) patch.data = input.data;
 
@@ -104,6 +116,16 @@ export class DataService {
       await this.ensureUniqueValue(tenantId, appId, uniqueField, newValue, objectId);
     }
 
+    // Soft-deleted record can be revived by editing and saving it again.
+    // When revived, we only keep DEV state and require explicit re-publish to PRD.
+    if (current.deletedAt && input.data) {
+      unsetPatch.deletedAt = 1;
+      unsetPatch.prdFormName = 1;
+      unsetPatch.prdVersion = 1;
+      unsetPatch.prdData = 1;
+      unsetPatch.prdUpdatedAt = 1;
+    }
+
     if (input.formName) {
       patch.formName = targetForm.formName;
       patch.version = targetForm.version;
@@ -114,7 +136,9 @@ export class DataService {
 
     patch.updatedAt = new Date();
 
-    await coll.updateOne({ _id: objectId, tenantId }, { $set: patch });
+    const updateDoc: Record<string, unknown> = { $set: patch };
+    if (Object.keys(unsetPatch).length > 0) updateDoc.$unset = unsetPatch;
+    await coll.updateOne({ _id: objectId, tenantId }, updateDoc);
     const updated = await coll.findOne({ _id: objectId, tenantId });
     if (!updated) throw new NotFoundException("Data not found");
     return this.toResponse(appId, updated as AppDataDocument);
@@ -122,9 +146,38 @@ export class DataService {
 
   async removeById(tenantId: string, appId: string, dataId: string) {
     const objectId = this.parseObjectId(dataId);
-    const res = await this.collection(appId).deleteOne({ _id: objectId, tenantId });
-    if (res.deletedCount < 1) throw new NotFoundException("Data not found");
-    return { deletedId: dataId };
+    const res = await this.collection(appId).updateOne(
+      { _id: objectId, tenantId, deletedAt: { $exists: false } },
+      {
+        $set: { deletedAt: new Date(), updatedAt: new Date() }
+      }
+    );
+    if (res.matchedCount < 1) throw new NotFoundException("Data not found");
+    return { deletedId: dataId, softDeleted: true };
+  }
+
+  async publishToPrd(tenantId: string, appId: string, dataId: string) {
+    const objectId = this.parseObjectId(dataId);
+    const coll = this.collection(appId);
+    const current = (await coll.findOne({ _id: objectId, tenantId, deletedAt: { $exists: false } })) as AppDataDocument | null;
+    if (!current) throw new NotFoundException("Data not found");
+
+    const now = new Date();
+    await coll.updateOne(
+      { _id: objectId, tenantId },
+      {
+        $set: {
+          prdFormName: current.formName,
+          prdVersion: current.version,
+          prdData: current.data,
+          prdUpdatedAt: now
+        }
+      }
+    );
+
+    const updated = (await coll.findOne({ _id: objectId, tenantId })) as AppDataDocument | null;
+    if (!updated) throw new NotFoundException("Data not found");
+    return this.toResponse(appId, updated);
   }
 
   async getByUniqueKey(tenantId: string, appId: string, uniqueValue: string, formName?: string) {
@@ -134,6 +187,7 @@ export class DataService {
     const hit = (await this.collection(appId).findOne({
       tenantId,
       ...(formName ? { formName } : {}),
+      deletedAt: { $exists: false },
       [`data.${uniqueField}`]: uniqueValue
     })) as AppDataDocument | null;
     if (!hit) throw new NotFoundException("Data not found");
@@ -157,6 +211,13 @@ export class DataService {
       formName: row.formName,
       version: row.version,
       data: row.data,
+      prdFormName: row.prdFormName,
+      prdVersion: row.prdVersion,
+      prdData: row.prdData,
+      prdUpdatedAt: row.prdUpdatedAt,
+      published: Boolean(row.prdData),
+      deletedAt: row.deletedAt,
+      deleted: Boolean(row.deletedAt),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
     };
@@ -191,6 +252,7 @@ export class DataService {
   ) {
     const query: Record<string, unknown> = {
       tenantId,
+      deletedAt: { $exists: false },
       [`data.${field}`]: value
     };
     if (excludeId) query._id = { $ne: excludeId };

@@ -12,6 +12,7 @@ import {
   InputNumber,
   Layout,
   Menu,
+  Modal,
   Popconfirm,
   Select,
   Space,
@@ -23,6 +24,7 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
+import ReactDiffViewer from "react-diff-viewer";
 import { componentRegistry } from "@lowcode/component-registry";
 import { ArrayObjectTableField, ArrayStringTableField, FormRenderer, ObjectDrawerField } from "@lowcode/form-engine";
 import { domainToRuntime } from "@lowcode/schema-runtime";
@@ -52,6 +54,13 @@ interface DataItem {
   formName: string;
   version: string;
   data: Record<string, unknown>;
+  prdFormName?: string;
+  prdVersion?: string;
+  prdData?: Record<string, unknown>;
+  prdUpdatedAt?: string;
+  published?: boolean;
+  deletedAt?: string;
+  deleted?: boolean;
   updatedAt: string;
 }
 
@@ -191,6 +200,14 @@ function formatListCellValue(value: unknown, fieldType: string): string {
   }
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+function toPrettyJson(value: unknown): string {
+  try {
+    return JSON.stringify(value ?? {}, null, 2);
+  } catch {
+    return String(value ?? "{}");
+  }
 }
 
 function toDomainSchema(form: FormItem): DomainFormSchema | null {
@@ -396,7 +413,7 @@ function AppsPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <Space>
+          <Space className="list-toolbar-actions">
             <Button onClick={() => void load()} loading={loading}>
               刷新
             </Button>
@@ -415,7 +432,9 @@ function AppsPage() {
   );
 }
 
-function useAppData(appId: string) {
+type DataScope = "active" | "deleted" | "all";
+
+function useAppData(appId: string, scope: DataScope = "active") {
   const [forms, setForms] = React.useState<FormItem[]>([]);
   const [rows, setRows] = React.useState<DataItem[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -426,14 +445,14 @@ function useAppData(appId: string) {
     try {
       const [formsRes, dataRes] = await Promise.all([
         fetch(`${API_BASE}/apps/${appId}/forms`, { headers: { "x-tenant-id": TENANT } }),
-        fetch(`${API_BASE}/apps/${appId}/data`, { headers: { "x-tenant-id": TENANT } })
+        fetch(`${API_BASE}/apps/${appId}/data?scope=${scope}`, { headers: { "x-tenant-id": TENANT } })
       ]);
       setForms((await formsRes.json()) as FormItem[]);
       setRows((await dataRes.json()) as DataItem[]);
     } finally {
       setLoading(false);
     }
-  }, [appId]);
+  }, [appId, scope]);
 
   return { forms, rows, loading, load };
 }
@@ -442,8 +461,12 @@ function DataListPage() {
   const { appId = "" } = useParams();
   const [api, contextHolder] = message.useMessage();
   const navigate = useNavigate();
-  const { forms, rows, loading, load } = useAppData(appId);
+  const [showDeleted, setShowDeleted] = React.useState(false);
+  const scope: DataScope = showDeleted ? "deleted" : "active";
+  const { forms, rows, loading, load } = useAppData(appId, scope);
   const [query, setQuery] = React.useState("");
+  const [publishTarget, setPublishTarget] = React.useState<DataItem | null>(null);
+  const [publishing, setPublishing] = React.useState(false);
 
   React.useEffect(() => {
     void load();
@@ -466,6 +489,26 @@ function DataListPage() {
     api.success("已删除");
     await load();
   };
+
+  const publish = async (id: string) => {
+    setPublishing(true);
+    const res = await fetch(`${API_BASE}/apps/${appId}/data/${id}/publish`, {
+      method: "POST",
+      headers: { "x-tenant-id": TENANT }
+    });
+    setPublishing(false);
+    if (!res.ok) {
+      api.error(`发布失败: ${await res.text()}`);
+      return;
+    }
+    api.success("已发布到 PRD");
+    setPublishTarget(null);
+    await load();
+  };
+
+  const prdJson = React.useMemo(() => toPrettyJson(publishTarget?.prdData ?? {}), [publishTarget]);
+  const devJson = React.useMemo(() => toPrettyJson(publishTarget?.data ?? {}), [publishTarget]);
+  const hasJsonDiff = React.useMemo(() => prdJson !== devJson, [prdJson, devJson]);
 
   const formDomains = React.useMemo(() => {
     const map = new Map<string, DomainFormSchema>();
@@ -501,6 +544,23 @@ function DataListPage() {
       render: (v: string) => new Date(v).toLocaleString()
     },
     {
+      title: "PRD",
+      key: "prd",
+      width: 140,
+      render: (_, row) =>
+        row.published ? (
+          <Tag color="green">{row.prdUpdatedAt ? `已发布 ${new Date(row.prdUpdatedAt).toLocaleDateString()}` : "已发布"}</Tag>
+        ) : (
+          <Tag>未发布</Tag>
+        )
+    },
+    {
+      title: "状态",
+      key: "status",
+      width: 100,
+      render: (_, row) => (row.deleted ? <Tag color="red">已删除</Tag> : <Tag color="blue">正常</Tag>)
+    },
+    {
       title: "操作",
       key: "actions",
       width: 170,
@@ -510,11 +570,18 @@ function DataListPage() {
           <Button type="link" onClick={() => navigate(`/apps/${appId}/data/${row._id}/edit`)}>
             修改
           </Button>
-          <Popconfirm title="确认删除?" onConfirm={() => void remove(row._id)}>
-            <Button type="link" danger>
-              删除
-            </Button>
-          </Popconfirm>
+          {!row.deleted && (
+            <>
+              <Button type="link" onClick={() => setPublishTarget(row)}>
+                发布
+              </Button>
+              <Popconfirm title="确认删除?" onConfirm={() => void remove(row._id)}>
+                <Button type="link" danger>
+                  删除
+                </Button>
+              </Popconfirm>
+            </>
+          )}
         </Space>
       )
     }
@@ -551,7 +618,10 @@ function DataListPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <Space>
+          <Checkbox checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)}>
+            已删除
+          </Checkbox>
+          <Space className="list-toolbar-actions">
             <Button onClick={() => void load()} loading={loading}>
               刷新
             </Button>
@@ -568,6 +638,39 @@ function DataListPage() {
           scroll={{ x: "max-content" }}
         />
       </Card>
+      <Modal
+        open={Boolean(publishTarget)}
+        title="发布到 PRD"
+        width={1200}
+        rootClassName="publish-diff-modal-root"
+        centered
+        onCancel={() => {
+          if (!publishing) setPublishTarget(null);
+        }}
+        okText="确认发布"
+        confirmLoading={publishing}
+        okButtonProps={{ disabled: !hasJsonDiff }}
+        onOk={() => publishTarget && void publish(publishTarget._id)}
+      >
+        <div className="publish-json-wrap">
+          <Typography.Text type="secondary">
+            左右展示完整 JSON，确认后将 DEV 快照发布到 PRD。
+          </Typography.Text>
+          <div className="publish-json-status">
+            {hasJsonDiff ? <Tag color="gold">有差异，发布后 PRD 将更新</Tag> : <Tag>无差异</Tag>}
+          </div>
+          <div className="publish-json-diff">
+            <ReactDiffViewer
+              oldValue={prdJson}
+              newValue={devJson}
+              splitView
+              hideLineNumbers={false}
+              leftTitle="PRD (旧)"
+              rightTitle="DEV (新)"
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -577,7 +680,7 @@ function DataFormPage({ mode }: { mode: "new" | "edit" }) {
   const navigate = useNavigate();
   const [api, contextHolder] = message.useMessage();
   const [editorForm] = Form.useForm();
-  const { forms, rows, load } = useAppData(appId);
+  const { forms, rows, load } = useAppData(appId, "all");
   const [loading, setLoading] = React.useState(false);
   const appLabel = React.useMemo(
     () => formatAppLabel(appId),

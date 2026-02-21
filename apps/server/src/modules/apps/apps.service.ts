@@ -36,8 +36,8 @@ export class AppsService {
     return this.formService.listByApp(tenantId, appId);
   }
 
-  listDataByApp(tenantId: string, appId: string) {
-    return this.dataService.listByApp(tenantId, appId);
+  listDataByApp(tenantId: string, appId: string, scope: "active" | "deleted" | "all" = "active") {
+    return this.dataService.listByApp(tenantId, appId, scope);
   }
 
   createDataInApp(tenantId: string, appId: string, input: { formName?: string; data: Record<string, unknown> }) {
@@ -59,6 +59,10 @@ export class AppsService {
 
   getDataByUniqueKey(tenantId: string, appId: string, uniqueValue: string, formName?: string) {
     return this.dataService.getByUniqueKey(tenantId, appId, uniqueValue, formName);
+  }
+
+  publishDataToPrd(tenantId: string, appId: string, dataId: string) {
+    return this.dataService.publishToPrd(tenantId, appId, dataId);
   }
 
   private resolveProtoDir(): string | null {
