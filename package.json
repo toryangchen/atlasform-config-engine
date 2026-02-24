@@ -7,13 +7,10 @@
     "dev": "turbo run dev --parallel",
     "dev:ui": "turbo run dev --parallel --filter=@lowcode/admin --filter=@lowcode/web",
     "dev:server": "pnpm --filter @lowcode/server dev",
-    "dev:server:restart": "sh -c 'PIDS=$(lsof -tiTCP:3000 -sTCP:LISTEN || true); if [ -n \"$PIDS\" ]; then kill $PIDS || true; sleep 1; PIDS2=$(lsof -tiTCP:3000 -sTCP:LISTEN || true); if [ -n \"$PIDS2\" ]; then kill -9 $PIDS2 || true; fi; fi; pnpm --filter @lowcode/server dev'",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "proto:gen": "pnpm --filter @lowcode/proto-core proto:gen",
-    "migrate:form-fields:dry": "node ./infra/scripts/migrate-form-schema-fields.mjs",
-    "migrate:form-fields:apply": "node ./infra/scripts/migrate-form-schema-fields.mjs --apply"
+    "proto:gen": "pnpm --filter @lowcode/proto-core proto:gen"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",

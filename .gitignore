@@ -7,3 +7,6 @@ coverage
 
 .mongo-data
 .mongo-log
+
+.DS_Store
+**/.DS_Store

@@ -99,7 +99,6 @@ pnpm --filter @lowcode/admin dev
 ```bash
 pnpm dev:ui             # 同时启动 admin + web
 pnpm dev:server         # 单独启动 server
-pnpm dev:server:restart # 仅重启 3000 端口 server
 ```
 
 ## 7. Proto 与应用关系
@@ -221,22 +220,7 @@ GET    /data/:formName
 - prdUpdatedAt
 - createdAt / updatedAt
 
-## 10. 历史脏数据迁移（重要）
-
-用于修复历史记录 `schema.fields` 缺失问题：
-
-```bash
-export MONGO_URI="mongodb://127.0.0.1:27017/lowcode_platform"
-
-pnpm migrate:form-fields:dry
-pnpm migrate:form-fields:apply
-```
-
-迁移策略：
-- 同 `tenantId + appId + formName` 下，使用“健康版本”的 `schema.fields` 回填脏版本。
-- 找不到模板时，打 `_migration` 标记并保留人工处理。
-
-## 11. 常用命令
+## 10. 常用命令
 
 ```bash
 pnpm typecheck
@@ -244,21 +228,17 @@ pnpm build
 pnpm dev
 pnpm dev:ui
 pnpm dev:server
-pnpm dev:server:restart
 pnpm proto:gen
-pnpm migrate:form-fields:dry
-pnpm migrate:form-fields:apply
 ```
 
-## 12. V1 验收标准（建议）
+## 11. V1 验收标准（建议）
 
 - `pnpm typecheck` 全部通过。
 - Server 能连接 Mongo 并启动成功。
 - Admin 可完成：应用列表 -> 数据列表 -> 新增 -> 修改 -> 删除。
 - 自动表单在新增/修改页可正确渲染。
-- 脏 schema 迁移脚本 dry/apply 可执行。
 
-## 13. 下一阶段建议（V1.1）
+## 12. 下一阶段建议（V1.1）
 
 1. Admin 数据页增加筛选、分页、搜索与批量操作。  
 2. 自动表单支持更丰富的嵌套字段编辑器（Object/Array<Object> 可视化）。  
@@ -269,5 +249,4 @@ pnpm migrate:form-fields:apply
 
 如需发布到 Git，建议在首个 Release Tag 附上：
 - Mongo 初始化说明
-- 迁移脚本执行记录（dry-run 与 apply 输出）
 - V1 已知限制清单
