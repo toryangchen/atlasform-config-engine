@@ -16,10 +16,12 @@ export interface UserInfoForm {
   school: string;
   age: number;
   bio: string;
+  avatar: string;
+  photos: string[];
 }
 
 function createBaseUserInfoForm(): UserInfoForm {
-  return { userId: "", phone: "", school: "", age: 0, bio: "" };
+  return { userId: "", phone: "", school: "", age: 0, bio: "", avatar: "", photos: [] };
 }
 
 export const UserInfoForm: MessageFns<UserInfoForm> = {
@@ -38,6 +40,12 @@ export const UserInfoForm: MessageFns<UserInfoForm> = {
     }
     if (message.bio !== "") {
       writer.uint32(42).string(message.bio);
+    }
+    if (message.avatar !== "") {
+      writer.uint32(50).string(message.avatar);
+    }
+    for (const v of message.photos) {
+      writer.uint32(58).string(v!);
     }
     return writer;
   },
@@ -89,6 +97,22 @@ export const UserInfoForm: MessageFns<UserInfoForm> = {
           message.bio = reader.string();
           continue;
         }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.avatar = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.photos.push(reader.string());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -105,6 +129,8 @@ export const UserInfoForm: MessageFns<UserInfoForm> = {
       school: isSet(object.school) ? globalThis.String(object.school) : "",
       age: isSet(object.age) ? globalThis.Number(object.age) : 0,
       bio: isSet(object.bio) ? globalThis.String(object.bio) : "",
+      avatar: isSet(object.avatar) ? globalThis.String(object.avatar) : "",
+      photos: globalThis.Array.isArray(object?.photos) ? object.photos.map((e: any) => globalThis.String(e)) : [],
     };
   },
 
@@ -125,6 +151,12 @@ export const UserInfoForm: MessageFns<UserInfoForm> = {
     if (message.bio !== "") {
       obj.bio = message.bio;
     }
+    if (message.avatar !== "") {
+      obj.avatar = message.avatar;
+    }
+    if (message.photos?.length) {
+      obj.photos = message.photos;
+    }
     return obj;
   },
 
@@ -138,6 +170,8 @@ export const UserInfoForm: MessageFns<UserInfoForm> = {
     message.school = object.school ?? "";
     message.age = object.age ?? 0;
     message.bio = object.bio ?? "";
+    message.avatar = object.avatar ?? "";
+    message.photos = object.photos?.map((e) => e) || [];
     return message;
   },
 };

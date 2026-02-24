@@ -331,6 +331,24 @@ export class DataService {
       return;
     }
 
+    if (fieldType === "image") {
+      if (typeof value === "string" && this.isValidImageUrl(value)) return;
+      if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string" && this.isValidImageUrl(value[0])) return;
+      throw new BadRequestException(`${pathLabel} 必须是有效图片 URL`);
+    }
+
+    if (fieldType === "array-image") {
+      if (!Array.isArray(value)) {
+        throw new BadRequestException(`${pathLabel} 必须是图片 URL 数组`);
+      }
+      value.forEach((item, index) => {
+        if (typeof item !== "string" || !this.isValidImageUrl(item)) {
+          throw new BadRequestException(`${pathLabel}[${index}] 必须是有效图片 URL`);
+        }
+      });
+      return;
+    }
+
     if (fieldType === "object") {
       if (!value || typeof value !== "object" || Array.isArray(value)) {
         throw new BadRequestException(`${pathLabel} 必须是对象`);
@@ -408,5 +426,19 @@ export class DataService {
       if (fence === token) fence = null;
     }
     return fence === null;
+  }
+
+  private isValidImageUrl(input: string): boolean {
+    const url = input.trim();
+    if (!url) return false;
+    if (url.startsWith("data:image/")) return true;
+    if (url.startsWith("blob:")) return true;
+    if (url.startsWith("/")) return true;
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
   }
 }

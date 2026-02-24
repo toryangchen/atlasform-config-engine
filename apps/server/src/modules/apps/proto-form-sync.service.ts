@@ -108,6 +108,9 @@ export class ProtoFormSyncService implements OnModuleInit {
 
     if (field.repeated) {
       if (scalar === "string") {
+        if (field.widget === "image") {
+          return { name: field.name, label, type: "array-image", required, rules, list_visible: listVisible, unique_key: uniqueKey };
+        }
         return { name: field.name, label, type: "array", item_type: "string", required, rules, list_visible: listVisible, unique_key: uniqueKey };
       }
       if (scalar === "number") {
@@ -149,7 +152,7 @@ export class ProtoFormSyncService implements OnModuleInit {
 
     if (scalar === "string") {
       const widget = field.widget?.trim().toLowerCase();
-      const type = widget === "textarea" || widget === "markdown" || widget === "json" ? widget : "string";
+      const type = widget === "textarea" || widget === "markdown" || widget === "json" || widget === "image" ? widget : "string";
       return { name: field.name, label, type, required, rules, list_visible: listVisible, unique_key: uniqueKey };
     }
     if (scalar === "number") return { name: field.name, label, type: "number", required, rules, list_visible: listVisible, unique_key: uniqueKey };

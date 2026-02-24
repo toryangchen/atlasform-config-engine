@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { Alert, Checkbox, ConfigProvider, Empty, Input, InputNumber, Select as AntdSelect, Space, Spin, Switch as AntdSwitch, Typography } from "antd";
 import "antd/dist/reset.css";
 import { componentRegistry } from "@lowcode/component-registry";
-import { ArrayObjectTableField, ArrayStringTableField, FormRenderer, ObjectDrawerField } from "@lowcode/form-engine";
+import { ArrayObjectTableField, ArrayStringTableField, FormRenderer, MultiImageUploadField, ObjectDrawerField, SingleImageUploadField } from "@lowcode/form-engine";
 import { PluginManager, auditPlugin } from "@lowcode/plugin-system";
 import { domainToRuntime } from "@lowcode/schema-runtime";
 import type { DomainFieldSchema, DomainFormSchema, RuntimeFormSchema } from "@lowcode/shared-types";
@@ -39,6 +39,8 @@ componentRegistry.registerComponent("switch", AntdSwitch);
 componentRegistry.registerComponent("object", ObjectDrawerField);
 componentRegistry.registerComponent("array", ArrayStringTableField);
 componentRegistry.registerComponent("array<object>", ArrayObjectTableField);
+componentRegistry.registerComponent("image", SingleImageUploadField);
+componentRegistry.registerComponent("array-image", MultiImageUploadField);
 
 const pluginManager = new PluginManager();
 pluginManager.use(auditPlugin);

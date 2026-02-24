@@ -26,7 +26,7 @@ import type { ColumnsType } from "antd/es/table";
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import ReactDiffViewer from "react-diff-viewer";
 import { componentRegistry } from "@lowcode/component-registry";
-import { ArrayObjectTableField, ArrayStringTableField, FormRenderer, ObjectDrawerField } from "@lowcode/form-engine";
+import { ArrayObjectTableField, ArrayStringTableField, FormRenderer, MultiImageUploadField, ObjectDrawerField, SingleImageUploadField } from "@lowcode/form-engine";
 import { domainToRuntime } from "@lowcode/schema-runtime";
 import type { DomainFieldSchema, DomainFormSchema, RuntimeFormSchema } from "@lowcode/shared-types";
 import "antd/dist/reset.css";
@@ -81,6 +81,8 @@ componentRegistry.registerComponent("switch", Switch);
 componentRegistry.registerComponent("object", ObjectDrawerField);
 componentRegistry.registerComponent("array", ArrayStringTableField);
 componentRegistry.registerComponent("array<object>", ArrayObjectTableField);
+componentRegistry.registerComponent("image", SingleImageUploadField);
+componentRegistry.registerComponent("array-image", MultiImageUploadField);
 
 function formatAppLabel(appId: string): string {
   return appId

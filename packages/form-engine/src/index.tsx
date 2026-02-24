@@ -83,6 +83,14 @@ function toAntdRules(
             }
           };
         }
+        if (componentType === "array-image") {
+          return {
+            validator: async (_, value) => {
+              if (Array.isArray(value) && value.length > 0) return;
+              throw new Error(`${label} is required`);
+            }
+          };
+        }
         if (componentType === "object") {
           return {
             validator: async (_, value) => {
@@ -156,3 +164,4 @@ export const FormRenderer: React.FC<FormRendererProps> = ({ schema, form: extern
 export { ObjectDrawerField } from "./object-drawer-field";
 export { ArrayStringTableField } from "./array-string-table-field";
 export { ArrayObjectTableField } from "./array-object-table-field";
+export { SingleImageUploadField, MultiImageUploadField } from "./image-upload-field";

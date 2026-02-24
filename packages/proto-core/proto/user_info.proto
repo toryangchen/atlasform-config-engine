@@ -35,4 +35,11 @@ message UserInfoForm {
     (lowcode.meta.ui_widget) = "textarea"
   ];
   
+  string avatar = 6 [
+    (lowcode.meta.ui_widget) = "image"
+  ];
+
+  repeated string photos = 7 [
+    (lowcode.meta.ui_widget) = "image"
+  ];
 }
