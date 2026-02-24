@@ -14,6 +14,7 @@ interface ProtoField {
   pattern?: string;
   listVisible?: boolean;
   uniqueKey?: boolean;
+  widget?: string;
 }
 
 interface MessageDef {
@@ -146,7 +147,11 @@ export class ProtoFormSyncService implements OnModuleInit {
       return null;
     }
 
-    if (scalar === "string") return { name: field.name, label, type: "string", required, rules, list_visible: listVisible, unique_key: uniqueKey };
+    if (scalar === "string") {
+      const widget = field.widget?.trim().toLowerCase();
+      const type = widget === "textarea" || widget === "markdown" || widget === "json" ? widget : "string";
+      return { name: field.name, label, type, required, rules, list_visible: listVisible, unique_key: uniqueKey };
+    }
     if (scalar === "number") return { name: field.name, label, type: "number", required, rules, list_visible: listVisible, unique_key: uniqueKey };
     if (scalar === "boolean") return { name: field.name, label, type: "switch", required, rules, list_visible: listVisible, unique_key: uniqueKey };
 
@@ -180,9 +185,9 @@ export class ProtoFormSyncService implements OnModuleInit {
     for (const b of blocks) {
       const body = this.removeInnerBlocks(b.body);
       const fields: ProtoField[] = [];
-      let pendingMeta: { label?: string; required?: boolean; pattern?: string; listVisible?: boolean; uniqueKey?: boolean } = {};
+      let pendingMeta: { label?: string; required?: boolean; pattern?: string; listVisible?: boolean; uniqueKey?: boolean; widget?: string } = {};
       let statement = "";
-      let statementMeta: { label?: string; required?: boolean; pattern?: string; listVisible?: boolean; uniqueKey?: boolean } = {};
+      let statementMeta: { label?: string; required?: boolean; pattern?: string; listVisible?: boolean; uniqueKey?: boolean; widget?: string } = {};
 
       for (const raw of body.split("\n")) {
         const line = raw.trim();
@@ -231,6 +236,7 @@ export class ProtoFormSyncService implements OnModuleInit {
         if (typeof mergedMeta.pattern === "string") nextField.pattern = mergedMeta.pattern;
         if (typeof mergedMeta.listVisible === "boolean") nextField.listVisible = mergedMeta.listVisible;
         if (typeof mergedMeta.uniqueKey === "boolean") nextField.uniqueKey = mergedMeta.uniqueKey;
+        if (typeof mergedMeta.widget === "string") nextField.widget = mergedMeta.widget;
         fields.push(nextField);
         pendingMeta = {};
         statement = "";
@@ -493,8 +499,15 @@ export class ProtoFormSyncService implements OnModuleInit {
     return result;
   }
 
-  private extractFieldMetaFromOptions(options: string): { label?: string; required?: boolean; pattern?: string; listVisible?: boolean; uniqueKey?: boolean } {
-    const result: { label?: string; required?: boolean; pattern?: string; listVisible?: boolean; uniqueKey?: boolean } = {};
+  private extractFieldMetaFromOptions(options: string): {
+    label?: string;
+    required?: boolean;
+    pattern?: string;
+    listVisible?: boolean;
+    uniqueKey?: boolean;
+    widget?: string;
+  } {
+    const result: { label?: string; required?: boolean; pattern?: string; listVisible?: boolean; uniqueKey?: boolean; widget?: string } = {};
     if (!options) return result;
 
     const label = this.extractStringOption(options, ["ui_label"]);
@@ -514,6 +527,9 @@ export class ProtoFormSyncService implements OnModuleInit {
 
     const uniqueKey = this.extractBooleanOption(options, ["ui_unique"]);
     if (typeof uniqueKey === "boolean") result.uniqueKey = uniqueKey;
+
+    const widget = this.extractStringOption(options, ["ui_widget"]);
+    if (widget) result.widget = widget.trim().toLowerCase();
 
     return result;
   }
@@ -552,6 +568,8 @@ export class ProtoFormSyncService implements OnModuleInit {
   private buildRules(field: ProtoField): Array<{ type: string; value?: string }> {
     const rules: Array<{ type: string; value?: string }> = [];
     if (field.pattern) rules.push({ type: "pattern", value: field.pattern });
+    if (field.widget === "json") rules.push({ type: "json" });
+    if (field.widget === "markdown") rules.push({ type: "markdown" });
     return rules;
   }
 

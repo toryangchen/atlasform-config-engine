@@ -23,8 +23,22 @@ interface FormFieldMeta {
   name?: string;
   key?: string;
   label?: string;
+  type?: string;
+  fieldType?: string;
+  required?: boolean;
+  rules?: Array<{ type?: string; value?: string }>;
+  object_fields?: FormFieldMeta[];
+  objectFields?: FormFieldMeta[];
+  item_object_fields?: FormFieldMeta[];
+  itemObjectFields?: FormFieldMeta[];
+  fields?: FormFieldMeta[];
   unique_key?: boolean;
   uniqueKey?: boolean;
+}
+
+interface UniqueFieldMeta {
+  name: string;
+  label: string;
 }
 
 @Injectable()
@@ -61,11 +75,12 @@ export class DataService {
     input: { formName?: string; data: Record<string, unknown> }
   ) {
     const form = await this.formService.getCurrentInApp(tenantId, appId, input.formName);
-    const uniqueField = this.getUniqueFieldName(form.schema as Record<string, unknown>);
+    this.validateDataBySchema(form.schema as Record<string, unknown>, input.data);
+    const uniqueField = this.getUniqueFieldMeta(form.schema as Record<string, unknown>);
     if (uniqueField) {
-      const uniqueValue = this.readUniqueValue(input.data, uniqueField);
+      const uniqueValue = this.readUniqueValue(input.data, uniqueField.name);
       if (uniqueValue === undefined || uniqueValue === "") {
-        throw new BadRequestException(`Unique key "${uniqueField}" is required`);
+        throw new BadRequestException(`请填写唯一标识字段：${uniqueField.label}`);
       }
       await this.ensureUniqueValue(tenantId, appId, uniqueField, uniqueValue);
     }
@@ -102,16 +117,17 @@ export class DataService {
 
     const targetFormName = input.formName ?? current.formName;
     const targetForm = await this.formService.getCurrentInApp(tenantId, appId, targetFormName);
-    const uniqueField = this.getUniqueFieldName(targetForm.schema as Record<string, unknown>);
+    this.validateDataBySchema(targetForm.schema as Record<string, unknown>, nextData);
+    const uniqueField = this.getUniqueFieldMeta(targetForm.schema as Record<string, unknown>);
     if (uniqueField) {
-      const oldValue = this.readUniqueValue(current.data ?? {}, uniqueField);
-      const newValue = this.readUniqueValue(nextData ?? {}, uniqueField);
+      const oldValue = this.readUniqueValue(current.data ?? {}, uniqueField.name);
+      const newValue = this.readUniqueValue(nextData ?? {}, uniqueField.name);
 
       if (newValue === undefined || newValue === "") {
-        throw new BadRequestException(`Unique key "${uniqueField}" is required`);
+        throw new BadRequestException(`请填写唯一标识字段：${uniqueField.label}`);
       }
       if (oldValue !== undefined && oldValue !== "" && oldValue !== newValue) {
-        throw new BadRequestException(`Unique key "${uniqueField}" is immutable once initialized`);
+        throw new BadRequestException(`${uniqueField.label} 创建后不可修改`);
       }
       await this.ensureUniqueValue(tenantId, appId, uniqueField, newValue, objectId);
     }
@@ -182,13 +198,13 @@ export class DataService {
 
   async getByUniqueKey(tenantId: string, appId: string, uniqueValue: string, formName?: string) {
     const form = await this.formService.getCurrentInApp(tenantId, appId, formName);
-    const uniqueField = this.getUniqueFieldName(form.schema as Record<string, unknown>);
+    const uniqueField = this.getUniqueFieldMeta(form.schema as Record<string, unknown>);
     if (!uniqueField) throw new BadRequestException(`App "${appId}" does not define a unique key field`);
     const hit = (await this.collection(appId).findOne({
       tenantId,
       ...(formName ? { formName } : {}),
       deletedAt: { $exists: false },
-      [`data.${uniqueField}`]: uniqueValue
+      [`data.${uniqueField.name}`]: uniqueValue
     })) as AppDataDocument | null;
     if (!hit) throw new NotFoundException("Data not found");
     return this.toResponse(appId, hit);
@@ -223,18 +239,14 @@ export class DataService {
     };
   }
 
-  private getUniqueFieldName(schema: Record<string, unknown>): string | null {
-    const fieldsRaw = Array.isArray(schema.fields)
-      ? schema.fields
-      : schema.schema && typeof schema.schema === "object" && Array.isArray((schema.schema as Record<string, unknown>).fields)
-        ? ((schema.schema as Record<string, unknown>).fields as unknown[])
-        : [];
-    const fields = fieldsRaw.filter((item): item is FormFieldMeta => Boolean(item) && typeof item === "object");
+  private getUniqueFieldMeta(schema: Record<string, unknown>): UniqueFieldMeta | null {
+    const fields = this.extractSchemaFields(schema);
     const unique = fields.find((f) => Boolean(f.unique_key) || Boolean(f.uniqueKey));
     if (!unique) return null;
-    if (typeof unique.name === "string" && unique.name) return unique.name;
-    if (typeof unique.key === "string" && unique.key) return unique.key;
-    return null;
+    const name = typeof unique.name === "string" && unique.name ? unique.name : typeof unique.key === "string" ? unique.key : "";
+    if (!name) return null;
+    const label = typeof unique.label === "string" && unique.label ? unique.label : name;
+    return { name, label };
   }
 
   private readUniqueValue(data: Record<string, unknown>, field: string): string | undefined {
@@ -246,17 +258,155 @@ export class DataService {
   private async ensureUniqueValue(
     tenantId: string,
     appId: string,
-    field: string,
+    field: UniqueFieldMeta,
     value: string,
     excludeId?: Types.ObjectId
   ) {
     const query: Record<string, unknown> = {
       tenantId,
       deletedAt: { $exists: false },
-      [`data.${field}`]: value
+      [`data.${field.name}`]: value
     };
     if (excludeId) query._id = { $ne: excludeId };
     const exists = await this.collection(appId).findOne(query);
-    if (exists) throw new ConflictException(`Unique key "${field}" value "${value}" already exists`);
+    if (exists) throw new ConflictException(`${field.label}「${value}」已存在，请使用其他值`);
+  }
+
+  private extractSchemaFields(schema: Record<string, unknown>): FormFieldMeta[] {
+    const fieldsRaw = Array.isArray(schema.fields)
+      ? schema.fields
+      : schema.schema && typeof schema.schema === "object" && Array.isArray((schema.schema as Record<string, unknown>).fields)
+        ? ((schema.schema as Record<string, unknown>).fields as unknown[])
+        : [];
+    return fieldsRaw.filter((item): item is FormFieldMeta => Boolean(item) && typeof item === "object");
+  }
+
+  private validateDataBySchema(schema: Record<string, unknown>, data: Record<string, unknown>) {
+    const fields = this.extractSchemaFields(schema);
+    for (const field of fields) {
+      const key = this.resolveFieldName(field);
+      if (!key) continue;
+      const label = typeof field.label === "string" && field.label ? field.label : key;
+      const value = data[key];
+      this.validateFieldValue(field, value, label);
+    }
+  }
+
+  private resolveFieldName(field: FormFieldMeta): string {
+    if (typeof field.name === "string" && field.name) return field.name;
+    if (typeof field.key === "string" && field.key) return field.key;
+    return "";
+  }
+
+  private resolveFieldType(field: FormFieldMeta): string {
+    if (typeof field.type === "string" && field.type) return field.type;
+    if (typeof field.fieldType === "string" && field.fieldType) return field.fieldType;
+    return "string";
+  }
+
+  private validateFieldValue(field: FormFieldMeta, value: unknown, pathLabel: string) {
+    if (value === undefined || value === null || value === "") return;
+    const fieldType = this.resolveFieldType(field);
+    const ruleTypes = Array.isArray(field.rules) ? field.rules.map((item) => item?.type).filter((item): item is string => Boolean(item)) : [];
+    const shouldValidateJson = fieldType === "json" || ruleTypes.includes("json");
+    const shouldValidateMarkdown = fieldType === "markdown" || ruleTypes.includes("markdown");
+
+    if (shouldValidateJson) {
+      if (typeof value !== "string") {
+        throw new BadRequestException(`${pathLabel} 必须是 JSON 字符串`);
+      }
+      if (!this.isValidJsonString(value)) {
+        throw new BadRequestException(`${pathLabel} JSON 格式不正确`);
+      }
+      return;
+    }
+
+    if (shouldValidateMarkdown) {
+      if (typeof value !== "string") {
+        throw new BadRequestException(`${pathLabel} 必须是 Markdown 字符串`);
+      }
+      if (!this.isValidMarkdownString(value)) {
+        throw new BadRequestException(`${pathLabel} Markdown 格式不正确`);
+      }
+      return;
+    }
+
+    if (fieldType === "object") {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new BadRequestException(`${pathLabel} 必须是对象`);
+      }
+      const childFields = this.extractChildFields(field, "object");
+      for (const child of childFields) {
+        const childName = this.resolveFieldName(child);
+        if (!childName) continue;
+        const childLabel = typeof child.label === "string" && child.label ? child.label : childName;
+        this.validateFieldValue(child, (value as Record<string, unknown>)[childName], `${pathLabel}.${childLabel}`);
+      }
+      return;
+    }
+
+    if (fieldType === "array<object>") {
+      const childFields = this.extractChildFields(field, "array<object>");
+      if (!Array.isArray(value)) {
+        // Backward-compat for old data: object can be treated as first row.
+        if (value && typeof value === "object") {
+          for (const child of childFields) {
+            const childName = this.resolveFieldName(child);
+            if (!childName) continue;
+            const childLabel = typeof child.label === "string" && child.label ? child.label : childName;
+            this.validateFieldValue(child, (value as Record<string, unknown>)[childName], `${pathLabel}[0].${childLabel}`);
+          }
+          return;
+        }
+        throw new BadRequestException(`${pathLabel} 必须是对象数组`);
+      }
+
+      value.forEach((row, index) => {
+        if (!row || typeof row !== "object" || Array.isArray(row)) {
+          throw new BadRequestException(`${pathLabel}[${index}] 必须是对象`);
+        }
+        for (const child of childFields) {
+          const childName = this.resolveFieldName(child);
+          if (!childName) continue;
+          const childLabel = typeof child.label === "string" && child.label ? child.label : childName;
+          this.validateFieldValue(child, (row as Record<string, unknown>)[childName], `${pathLabel}[${index}].${childLabel}`);
+        }
+      });
+    }
+  }
+
+  private extractChildFields(field: FormFieldMeta, type: "object" | "array<object>"): FormFieldMeta[] {
+    const source =
+      type === "object"
+        ? field.object_fields ?? field.objectFields ?? field.fields ?? []
+        : field.item_object_fields ?? field.itemObjectFields ?? [];
+    if (!Array.isArray(source)) return [];
+    return source.filter((item): item is FormFieldMeta => Boolean(item) && typeof item === "object");
+  }
+
+  private isValidJsonString(input: string): boolean {
+    try {
+      JSON.parse(input);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private isValidMarkdownString(input: string): boolean {
+    if (input.includes("\u0000")) return false;
+    let fence: "`" | "~" | null = null;
+    for (const line of input.split(/\r?\n/g)) {
+      const trimmed = line.trimStart();
+      const matched = trimmed.match(/^(```+|~~~+)/);
+      if (!matched?.[1]) continue;
+      const token = matched[1].charAt(0) as "`" | "~";
+      if (!fence) {
+        fence = token;
+        continue;
+      }
+      if (fence === token) fence = null;
+    }
+    return fence === null;
   }
 }

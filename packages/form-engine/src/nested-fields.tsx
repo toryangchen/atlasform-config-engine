@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "antd";
+import { Form, Tooltip } from "antd";
 import { componentRegistry } from "@lowcode/component-registry";
 
 type RawField = Record<string, unknown>;
@@ -97,7 +97,7 @@ export const NestedFieldsRenderer: React.FC<{ fields: NestedField[] }> = ({ fiel
           <Form.Item
             key={field.id}
             name={field.id}
-            label={field.label}
+            label={<Tooltip title={field.id}>{field.label}</Tooltip>}
             rules={field.required ? [{ required: true, message: `${field.label} is required` }] : []}
             {...(field.valuePropName ? { valuePropName: field.valuePropName } : {})}
           >

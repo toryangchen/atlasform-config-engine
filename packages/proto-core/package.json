@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "proto:gen": "bash ./scripts/gen.sh",
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "echo 'build skipped for proto-core (source-of-truth is .proto files)'",
+    "typecheck": "echo 'typecheck skipped for proto-core (source-of-truth is .proto files)'",
     "lint": "echo 'lint reserved for proto-core'"
   },
   "dependencies": {

@@ -11,6 +11,7 @@ extend google.protobuf.FieldOptions {
   bool ui_list = 51004;
   bool ui_unique = 51005;
   int32 ui_list_order = 51006;
+  string ui_widget = 51007;
 }
 
 extend google.protobuf.EnumValueOptions {

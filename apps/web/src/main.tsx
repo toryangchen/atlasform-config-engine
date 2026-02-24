@@ -28,6 +28,9 @@ const API_BASE = "http://localhost:3000";
 const TENANT = "demo-tenant";
 
 componentRegistry.registerComponent("string", Input);
+componentRegistry.registerComponent("textarea", Input.TextArea);
+componentRegistry.registerComponent("markdown", Input.TextArea);
+componentRegistry.registerComponent("json", Input.TextArea);
 componentRegistry.registerComponent("number", InputNumber);
 componentRegistry.registerComponent("select", AntdSelect);
 componentRegistry.registerComponent("checkbox", Checkbox);

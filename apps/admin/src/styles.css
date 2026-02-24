@@ -269,6 +269,17 @@ body {
   gap: 8px;
 }
 
+.publish-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.publish-version-checks {
+  gap: 12px;
+}
+
 .publish-json-diff {
   height: min(60vh, calc(100vh - 320px));
   overflow: auto;
@@ -366,5 +377,14 @@ body {
 
   .publish-json-diff {
     height: min(52vh, calc(100vh - 300px));
+  }
+
+  .publish-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .publish-version-checks {
+    justify-content: flex-start;
   }
 }

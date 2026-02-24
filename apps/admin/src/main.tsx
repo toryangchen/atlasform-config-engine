@@ -70,6 +70,9 @@ const API_BASE = "http://localhost:3000";
 const TENANT = "demo-tenant";
 
 componentRegistry.registerComponent("string", Input);
+componentRegistry.registerComponent("textarea", Input.TextArea);
+componentRegistry.registerComponent("markdown", Input.TextArea);
+componentRegistry.registerComponent("json", Input.TextArea);
 componentRegistry.registerComponent("number", InputNumber);
 componentRegistry.registerComponent("select", Select);
 componentRegistry.registerComponent("checkbox", Checkbox);
@@ -208,6 +211,20 @@ function toPrettyJson(value: unknown): string {
   } catch {
     return String(value ?? "{}");
   }
+}
+
+async function extractErrorMessage(res: Response): Promise<string> {
+  const raw = await res.text();
+  if (!raw) return "请求失败";
+  try {
+    const parsed = JSON.parse(raw) as { message?: string | string[]; error?: string };
+    if (Array.isArray(parsed.message)) return parsed.message.join("；");
+    if (typeof parsed.message === "string" && parsed.message.trim()) return parsed.message;
+    if (typeof parsed.error === "string" && parsed.error.trim()) return parsed.error;
+  } catch {
+    // fall through
+  }
+  return raw;
 }
 
 function toDomainSchema(form: FormItem): DomainFormSchema | null {
@@ -467,10 +484,15 @@ function DataListPage() {
   const [query, setQuery] = React.useState("");
   const [publishTarget, setPublishTarget] = React.useState<DataItem | null>(null);
   const [publishing, setPublishing] = React.useState(false);
+  const [publishPrdChecked, setPublishPrdChecked] = React.useState(false);
 
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  React.useEffect(() => {
+    setPublishPrdChecked(Boolean(publishTarget?.published));
+  }, [publishTarget]);
 
   const appLabel = React.useMemo(
     () => formatAppLabel(appId),
@@ -483,7 +505,7 @@ function DataListPage() {
       headers: { "x-tenant-id": TENANT }
     });
     if (!res.ok) {
-      api.error("删除失败");
+      api.error(`删除失败: ${await extractErrorMessage(res)}`);
       return;
     }
     api.success("已删除");
@@ -498,7 +520,7 @@ function DataListPage() {
     });
     setPublishing(false);
     if (!res.ok) {
-      api.error(`发布失败: ${await res.text()}`);
+      api.error(`发布失败: ${await extractErrorMessage(res)}`);
       return;
     }
     api.success("已发布到 PRD");
@@ -506,8 +528,8 @@ function DataListPage() {
     await load();
   };
 
-  const prdJson = React.useMemo(() => toPrettyJson(publishTarget?.prdData ?? {}), [publishTarget]);
   const devJson = React.useMemo(() => toPrettyJson(publishTarget?.data ?? {}), [publishTarget]);
+  const prdJson = React.useMemo(() => toPrettyJson(publishTarget?.prdData ?? {}), [publishTarget]);
   const hasJsonDiff = React.useMemo(() => prdJson !== devJson, [prdJson, devJson]);
 
   const formDomains = React.useMemo(() => {
@@ -542,23 +564,6 @@ function DataListPage() {
       key: "updatedAt",
       width: 180,
       render: (v: string) => new Date(v).toLocaleString()
-    },
-    {
-      title: "PRD",
-      key: "prd",
-      width: 140,
-      render: (_, row) =>
-        row.published ? (
-          <Tag color="green">{row.prdUpdatedAt ? `已发布 ${new Date(row.prdUpdatedAt).toLocaleDateString()}` : "已发布"}</Tag>
-        ) : (
-          <Tag>未发布</Tag>
-        )
-    },
-    {
-      title: "状态",
-      key: "status",
-      width: 100,
-      render: (_, row) => (row.deleted ? <Tag color="red">已删除</Tag> : <Tag color="blue">正常</Tag>)
     },
     {
       title: "操作",
@@ -647,26 +652,57 @@ function DataListPage() {
         onCancel={() => {
           if (!publishing) setPublishTarget(null);
         }}
-        okText="确认发布"
-        confirmLoading={publishing}
-        okButtonProps={{ disabled: !hasJsonDiff }}
-        onOk={() => publishTarget && void publish(publishTarget._id)}
+        footer={
+          <div className="publish-modal-footer">
+            <Space className="publish-version-checks">
+              <Checkbox checked disabled>
+                DEV
+              </Checkbox>
+              <Checkbox
+                checked={Boolean(publishTarget?.published) || publishPrdChecked}
+                disabled={Boolean(publishTarget?.published)}
+                onChange={(e) => setPublishPrdChecked(e.target.checked)}
+              >
+                PRD
+              </Checkbox>
+            </Space>
+            <Space>
+              <Button onClick={() => setPublishTarget(null)} disabled={publishing}>
+                取消
+              </Button>
+              <Button
+                type="primary"
+                loading={publishing}
+                disabled={Boolean(publishTarget?.published) || !publishPrdChecked || !hasJsonDiff}
+                onClick={() => publishTarget && void publish(publishTarget._id)}
+              >
+                确认发布
+              </Button>
+            </Space>
+          </div>
+        }
       >
         <div className="publish-json-wrap">
           <Typography.Text type="secondary">
-            左右展示完整 JSON，确认后将 DEV 快照发布到 PRD。
+            左侧是 DEV，右侧是 PRD，确认后会用 DEV 覆盖 PRD。
           </Typography.Text>
           <div className="publish-json-status">
-            {hasJsonDiff ? <Tag color="gold">有差异，发布后 PRD 将更新</Tag> : <Tag>无差异</Tag>}
+            {publishTarget?.published ? (
+              <Tag color="green">该记录已发布到 PRD，不能重复发布</Tag>
+            ) : hasJsonDiff ? (
+              <Tag color="gold">有差异，勾选 PRD 后可发布</Tag>
+            ) : (
+              <Tag>无差异</Tag>
+            )}
           </div>
           <div className="publish-json-diff">
             <ReactDiffViewer
-              oldValue={prdJson}
-              newValue={devJson}
+              oldValue={devJson}
+              newValue={prdJson}
               splitView
               hideLineNumbers={false}
-              leftTitle="PRD (旧)"
-              rightTitle="DEV (新)"
+              leftTitle="DEV"
+              rightTitle="PRD"
             />
           </div>
         </div>
@@ -754,7 +790,7 @@ function DataFormPage({ mode }: { mode: "new" | "edit" }) {
       });
 
       if (!res.ok) {
-        api.error(`保存失败: ${await res.text()}`);
+        api.error(`保存失败: ${await extractErrorMessage(res)}`);
         return;
       }
 

@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package lowcode.profile;
+import "common/options.proto";
+
+
+// Root message for admin runtime form generation.
+message UserInfoForm {
+  
+  string userId = 1 [
+    (lowcode.meta.ui_label) = "用户ID",
+    (lowcode.meta.ui_unique) = true,
+    (lowcode.meta.ui_required) = true,
+    (lowcode.meta.ui_list) = true
+  ];
+  string phone = 2 [
+    (lowcode.meta.ui_label) = "手机号",
+    (lowcode.meta.ui_pattern) = "^1\\d{10}$",
+    (lowcode.meta.ui_list) = true
+  ];
+
+  string school = 3 [
+    (lowcode.meta.ui_label) = "毕业院校",
+    (lowcode.meta.ui_required) = true,
+    (lowcode.meta.ui_list) = true
+  ];
+
+  int32 age = 4 [
+    (lowcode.meta.ui_label) = "年龄",
+    (lowcode.meta.ui_list) = true
+  ];
+
+  string bio = 5 [
+    (lowcode.meta.ui_label) = "个人简介",
+    (lowcode.meta.ui_widget) = "textarea"
+  ];
+  
+}
