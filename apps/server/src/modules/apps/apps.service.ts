@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { DataService } from "../data/data.service";
 import { FormService } from "../form/form.service";
@@ -8,6 +8,7 @@ import { ProtoFormSyncService } from "./proto-form-sync.service";
 export interface AppDefinition {
   appId: string;
   name: string;
+  description: string;
   protoFile: string;
 }
 
@@ -27,7 +28,14 @@ export class AppsService {
       .filter((file) => file.endsWith(".proto"))
       .map((file) => {
         const appId = file.replace(/\.proto$/i, "");
-        return { appId, name: this.toName(appId), protoFile: file };
+        const content = readFileSync(resolve(protoDir, file), "utf-8");
+        const meta = this.extractAppMeta(content);
+        return {
+          appId,
+          name: meta.name || this.toName(appId),
+          description: meta.description || `${this.toName(appId)} application`,
+          protoFile: file
+        };
       });
   }
 
@@ -81,6 +89,23 @@ export class AppsService {
       .split(/[-_]/g)
       .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
       .join(" ");
+  }
+
+  private extractAppMeta(content: string): { name?: string | undefined; description?: string | undefined } {
+    const name = this.extractStringOption(content, ["app_name"]);
+    const description = this.extractStringOption(content, ["app_description"]);
+    return { name, description };
+  }
+
+  private extractStringOption(content: string, keys: string[]): string | undefined {
+    for (const key of keys) {
+      const match = content.match(new RegExp(`option\\s*\\((?:[\\w.]+\\.)?${key}\\)\\s*=\\s*\"((?:\\\\.|[^\"])*)\"\\s*;`, "i"));
+      if (!match?.[1]) continue;
+      return match[1]
+        .replace(/\\"/g, "\"")
+        .replace(/\\\\/g, "\\");
+    }
+    return undefined;
   }
 
 }

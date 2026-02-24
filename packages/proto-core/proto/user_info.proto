@@ -3,6 +3,9 @@ syntax = "proto3";
 package lowcode.profile;
 import "common/options.proto";
 
+option (lowcode.meta.app_name) = "User Info App";
+option (lowcode.meta.app_description) = "用户信息录入应用，适合基础资料与图片上传场景。";
+
 
 // Root message for admin runtime form generation.
 message UserInfoForm {

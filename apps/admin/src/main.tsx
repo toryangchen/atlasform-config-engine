@@ -35,6 +35,7 @@ import "./styles.css";
 interface AppDefinition {
   appId: string;
   name: string;
+  description: string;
   protoFile: string;
 }
 
@@ -90,6 +91,18 @@ function formatAppLabel(appId: string): string {
     .filter(Boolean)
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
+}
+
+function useAppsCatalog() {
+  const [apps, setApps] = React.useState<AppDefinition[]>([]);
+  React.useEffect(() => {
+    const run = async () => {
+      const res = await fetch(`${API_BASE}/apps`);
+      setApps((await res.json()) as AppDefinition[]);
+    };
+    void run();
+  }, []);
+  return apps;
 }
 
 function extractSchemaRoot(raw: Record<string, unknown>): Record<string, unknown> {
@@ -383,13 +396,14 @@ function AppsPage() {
       title: "应用",
       key: "app",
       render: (_, app) => (
-        <div>
-          <Typography.Text strong>{app.name}</Typography.Text>
-          <div>
-            <Tag>{app.appId}</Tag>
-          </div>
-        </div>
+        <Typography.Text strong>{app.name}</Typography.Text>
       )
+    },
+    {
+      title: "应用描述",
+      dataIndex: "description",
+      key: "description",
+      render: (value: string) => <Typography.Text type="secondary">{value || "-"}</Typography.Text>
     },
     { title: "Proto 文件", dataIndex: "protoFile", key: "protoFile" },
     {
@@ -408,7 +422,7 @@ function AppsPage() {
     const keyword = query.trim().toLowerCase();
     if (!keyword) return apps;
     return apps.filter((app) => {
-      const haystack = [app.name, app.appId, app.protoFile].join(" ").toLowerCase();
+      const haystack = [app.name, app.description, app.appId, app.protoFile].join(" ").toLowerCase();
       return haystack.includes(keyword);
     });
   }, [apps, query]);
@@ -427,7 +441,7 @@ function AppsPage() {
         <div className="list-toolbar">
           <Input.Search
             allowClear
-            placeholder="搜索 应用名 / appId / proto 文件"
+            placeholder="搜索 应用名 / 应用描述 / appId / proto 文件"
             className="list-toolbar-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -478,6 +492,7 @@ function useAppData(appId: string, scope: DataScope = "active") {
 
 function DataListPage() {
   const { appId = "" } = useParams();
+  const apps = useAppsCatalog();
   const [api, contextHolder] = message.useMessage();
   const navigate = useNavigate();
   const [showDeleted, setShowDeleted] = React.useState(false);
@@ -496,10 +511,7 @@ function DataListPage() {
     setPublishPrdChecked(Boolean(publishTarget?.published));
   }, [publishTarget]);
 
-  const appLabel = React.useMemo(
-    () => formatAppLabel(appId),
-    [appId]
-  );
+  const appLabel = React.useMemo(() => apps.find((app) => app.appId === appId)?.name || formatAppLabel(appId), [apps, appId]);
 
   const remove = async (id: string) => {
     const res = await fetch(`${API_BASE}/apps/${appId}/data/${id}`, {
@@ -715,15 +727,13 @@ function DataListPage() {
 
 function DataFormPage({ mode }: { mode: "new" | "edit" }) {
   const { appId = "", dataId = "" } = useParams();
+  const apps = useAppsCatalog();
   const navigate = useNavigate();
   const [api, contextHolder] = message.useMessage();
   const [editorForm] = Form.useForm();
   const { forms, rows, load } = useAppData(appId, "all");
   const [loading, setLoading] = React.useState(false);
-  const appLabel = React.useMemo(
-    () => formatAppLabel(appId),
-    [appId]
-  );
+  const appLabel = React.useMemo(() => apps.find((app) => app.appId === appId)?.name || formatAppLabel(appId), [apps, appId]);
 
   React.useEffect(() => {
     void load();

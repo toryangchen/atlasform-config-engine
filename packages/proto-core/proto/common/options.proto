@@ -4,6 +4,11 @@ package lowcode.meta;
 
 import "google/protobuf/descriptor.proto";
 
+extend google.protobuf.FileOptions {
+  string app_name = 51201;
+  string app_description = 51202;
+}
+
 extend google.protobuf.FieldOptions {
   string ui_label = 51001;
   bool ui_required = 51002;

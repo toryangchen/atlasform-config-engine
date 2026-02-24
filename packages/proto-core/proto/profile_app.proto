@@ -3,6 +3,9 @@ syntax = "proto3";
 package lowcode.profile;
 import "common/options.proto";
 
+option (lowcode.meta.app_name) = "Profile App";
+option (lowcode.meta.app_description) = "用户档案管理应用，包含基础信息、档案与经历。";
+
 enum Role {
   ROLE_UNSPECIFIED = 0 [
     (lowcode.meta.ui_enum_label) = "请选择角色",

@@ -12,6 +12,7 @@ import { RuntimeProvider } from "./lowcode/runtime-context";
 interface AppDefinition {
   appId: string;
   name: string;
+  description: string;
   protoFile: string;
 }
 
