@@ -23,6 +23,7 @@ import {
   message
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { AppstoreAddOutlined } from "@ant-design/icons";
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import ReactDiffViewer from "react-diff-viewer";
 import { componentRegistry } from "@lowcode/component-registry";
@@ -311,25 +312,17 @@ function AppLayout() {
   }, [loadApps]);
 
   const selectedKey = React.useMemo(() => {
-    if (location.pathname === "/apps") return "apps-overview";
     const match = location.pathname.match(/^\/apps\/([^/]+)/);
     if (!match?.[1]) return "";
     return `app:${match[1]}`;
   }, [location.pathname]);
 
   const menuItems = React.useMemo(
-    () => [
-      { key: "apps-overview", label: "应用管理" },
-      ...apps.map((app) => ({ key: `app:${app.appId}`, label: app.name }))
-    ],
+    () => apps.map((app) => ({ key: `app:${app.appId}`, label: app.name })),
     [apps]
   );
 
   const onMenuClick = ({ key }: { key: string }) => {
-    if (key === "apps-overview") {
-      navigate("/apps");
-      return;
-    }
     if (key.startsWith("app:")) {
       navigate(`/apps/${key.slice(4)}/data`);
     }
@@ -341,18 +334,20 @@ function AppLayout() {
         <div className="header-left">
           <div className="brand-dot" />
           <Typography.Text className="brand-title">AtlasForm Config Engine</Typography.Text>
-          <Tag className="brand-tag">V1</Tag>
         </div>
-        <Typography.Text className="header-caption">Multi-App Config Console</Typography.Text>
+        <div className="header-right">
+          <Button
+            type="text"
+            className="header-apps-entry"
+            icon={<AppstoreAddOutlined />}
+            onClick={() => navigate("/apps")}
+          >
+            应用管理
+          </Button>
+        </div>
       </Header>
       <Layout className="admin-body">
         <Sider className="admin-sider" width={252} theme="light" breakpoint="lg" collapsedWidth={0}>
-          <div className="sider-head">
-            <Typography.Text className="app-switcher-title">应用导航</Typography.Text>
-            <Button size="small" onClick={() => void loadApps()} loading={loading}>
-              刷新
-            </Button>
-          </div>
           <Menu
             mode="inline"
             selectedKeys={selectedKey ? [selectedKey] : []}
@@ -854,7 +849,8 @@ function AdminApp() {
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: "#0b8f76",
+          colorPrimary: "#0a84ff",
+          colorInfo: "#0a84ff",
           borderRadius: 14,
           colorBgContainer: "#ffffff"
         }

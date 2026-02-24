@@ -11,6 +11,7 @@
     "lint": "echo 'lint reserved for admin'"
   },
   "dependencies": {
+    "@ant-design/icons": "^5.6.1",
     "@lowcode/component-registry": "workspace:*",
     "@lowcode/form-engine": "workspace:*",
     "@lowcode/schema-runtime": "workspace:*",
