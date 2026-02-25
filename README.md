@@ -1,252 +1,203 @@
-# AtlasForm Config Engine (V1)
+# AtlasForm Config Engine
 
-AtlasForm Config Engine 是一个 Proto 驱动的配置化低代码系统（非拖拽），面向可长期产品化演进（3-5 年）的 SaaS 基础平台。
+🌐 Language
 
-## 1. V1 交付范围
+- English (default): [`README.md`](./README.md)
+- 中文：[`README.zh-CN.md`](./README.zh-CN.md)
 
-### 已完成
-- Proto -> TypeScript -> Runtime 的三层 schema 链路。
-- NestJS + MongoDB 的表单版本化与数据持久化。
-- Admin 多应用控制台（`一个 proto 文件 = 一个应用`）。
-- Admin UI 主题化改版（品牌头部、统计卡、面包屑、响应式布局）。
-- Admin 路由化页面：
-  - `/apps`
-  - `/apps/:appId/data`
-  - `/apps/:appId/data/new`
-  - `/apps/:appId/data/:dataId/edit`
-- 新增/修改数据使用自动生成表单（非手写 JSON 文本）。
-- Object 字段支持 Drawer 表单编辑（支持多层嵌套 object）。
-- 历史脏 schema 迁移脚本（批量补齐 `schema.fields`）。
+A Proto-driven, configuration-first low-code engine (non-drag-and-drop), designed for long-term product evolution.
 
-### 当前不在 V1 范围
-- 可视化拖拽设计器。
-- 完整 RBAC 与租户隔离策略落地。
-- 插件市场与插件签名体系。
+> ✨ This is a **Vibe Coding** project powered by **GPT-5.3-Codex**.
 
-## 2. 技术栈
+This project currently focuses on multi-app, form-driven data management and provides:
+- Proto-based app and form definitions
+- Admin console (app management, data list, create/edit)
+- NestJS + MongoDB backend APIs
+- Shared types across frontend/backend and runtime form rendering
 
-- Monorepo: `pnpm workspace` + `turbo`
-- 语言: 全 TypeScript（strict）
-- 前端:
-  - `apps/web`: React + Ant Design（运行时渲染）
-  - `apps/admin`: React + Ant Design + React Router（管理控制台）
-- 后端:
-  - `apps/server`: NestJS + Mongoose
-  - 数据库: MongoDB 7.0+
-- 协议与类型:
-  - Proto + ts-proto
-  - `packages/shared-types` 前后端共享类型
+> Detailed Proto parsing/annotation rules are intentionally moved to GitHub Wiki. This README focuses on usage and operations.
 
-## 3. 目录说明
+## 🚀 1. Tech Stack
 
-```txt
-apps/
-  web/      # 运行时低代码表单渲染
-  server/   # NestJS API + Mongo 持久化
-  admin/    # 多应用控制台（路由化）
+- Monorepo: `pnpm workspace` + `turborepo`
+- Language: TypeScript (strict)
+- Backend: NestJS + Mongoose (MongoDB)
+- Frontend: React + Ant Design + Vite
+- Schema pipeline: Proto -> Shared Types -> Runtime Schema -> Form Renderer
 
-packages/
-  proto-core/
-  shared-types/
-  schema-runtime/
-  form-engine/
-  component-registry/
-  validation-engine/
-  plugin-system/
-  utils/
+## 🧱 2. Repository Structure
 
-infra/
-  scripts/  # 启动、迁移等脚本
-  docker/
+```text
+atlasform-config-engine/
+├── apps/
+│   ├── admin/      # Admin console
+│   ├── server/     # NestJS API
+│   └── web/        # Runtime demo frontend
+├── packages/
+│   ├── component-registry/
+│   ├── form-engine/
+│   ├── plugin-system/
+│   ├── proto-core/       # .proto sources + generation scripts
+│   ├── schema-runtime/
+│   ├── shared-types/     # shared types (including generated files)
+│   ├── utils/
+│   └── validation-engine/
+├── infra/
+│   ├── docker/
+│   └── scripts/
+└── README.md
 ```
 
-## 4. 环境要求
+## ✅ 3. Prerequisites
 
-- Node.js >= 20（建议 22）
-- pnpm >= 10
-- MongoDB Community >= 7.0
-- `protoc`（用于 proto 生成）
+- Node.js 22+
+- pnpm 10+
+- MongoDB 7.0+
+- `protoc` (required only when regenerating types after proto changes)
 
-## 5. 快速启动（推荐）
+Install `protoc` example:
+- macOS: `brew install protobuf`
+
+## ⚡ 4. Quick Start
+
+### 📦 4.1 Install
 
 ```bash
 pnpm install
-protoc --version
-pnpm proto:gen
-pnpm typecheck
-./infra/scripts/dev.sh
 ```
 
-启动后默认地址：
-- Server: [http://localhost:3000](http://localhost:3000)
-- Web: [http://localhost:5173](http://localhost:5173)
-- Admin: [http://localhost:5174/apps](http://localhost:5174/apps)
+### 🗄️ 4.2 Start MongoDB
 
-> `./infra/scripts/dev.sh` 会自动检查并启动本地 Mongo（若 27017 未监听）。
+Option A: MongoDB is already installed and running (recommended)
 
-## 6. 分应用启动（可选）
+Option B: Use the project helper script
+
+```bash
+bash infra/scripts/dev.sh
+```
+
+This script attempts to start MongoDB at `127.0.0.1:27017`, then runs `pnpm dev`.
+
+### ▶️ 4.3 Start all services
+
+```bash
+pnpm dev
+```
+
+Default ports:
+- Server: `http://localhost:3000`
+- Admin: `http://localhost:5174`
+- Web (Runtime): `http://localhost:5173` (Vite default)
+
+## 🧰 5. Common Commands
+
+```bash
+pnpm dev                 # start admin + web + server
+pnpm dev:ui              # start admin + web only
+pnpm dev:server          # start server only
+pnpm build               # build all packages/apps
+pnpm typecheck           # typecheck all packages/apps
+pnpm lint                # reserved
+pnpm proto:gen           # regenerate shared types from proto
+```
+
+## 🧠 6. Data & Runtime Notes
+
+- Default Mongo URI: `mongodb://127.0.0.1:27017/lowcode_platform`
+- Override with env var:
 
 ```bash
 export MONGO_URI="mongodb://127.0.0.1:27017/lowcode_platform"
-
-pnpm --filter @lowcode/server dev
-pnpm --filter @lowcode/web dev
-pnpm --filter @lowcode/admin dev
 ```
 
-推荐使用根脚本（避免重启 server 影响 admin/web）：
+- Default tenant header: `x-tenant-id: demo-tenant`
+- Current built-in API base in Admin/Web: `http://localhost:3000`
+- Image upload endpoint is currently a placeholder: `/api/upload`
+
+## 🏗️ 7. Build & Deployment
+
+## 🔧 7.1 Backend (NestJS)
 
 ```bash
-pnpm dev:ui             # 同时启动 admin + web
-pnpm dev:server         # 单独启动 server
+pnpm --filter @lowcode/server build
+pnpm --filter @lowcode/server start
 ```
 
-## 7. Proto 与应用关系
+Before startup, ensure:
+- MongoDB is reachable
+- `MONGO_URI` is set correctly
 
-Proto 文件目录：
-- `packages/proto-core/proto/`
-
-规则：
-- 每新增一个 `*.proto` 文件，Admin 会识别为一个新应用。
-- 例如 `crm.proto` -> `appId=crm`。
-- 当前已提供嵌套对象示例：`profile_app.proto`（含 `object_fields` 多层结构）。
-
-### 7.1 FieldOptions（推荐）
-
-公共扩展定义：
-- `packages/proto-core/proto/common/options.proto`
-
-通过 `google.protobuf.FieldOptions` 扩展统一配置 UI 元数据（强类型、可校验）：
-- `(lowcode.meta.ui_label)`：字段展示名称
-- `(lowcode.meta.ui_required)`：必填
-- `(lowcode.meta.ui_pattern)`：正则校验
-- `(lowcode.meta.ui_list)`：是否展示在数据列表表格中
-- `(lowcode.meta.ui_unique)`：应用内唯一键（初始化后不可修改）
-
-示例：
-
-```proto
-import "common/options.proto";
-
-message ProfileAppForm {
-  string username = 1 [
-    (lowcode.meta.ui_label) = "用户名",
-    (lowcode.meta.ui_required) = true,
-    (lowcode.meta.ui_pattern) = "^[a-zA-Z0-9_]{3,20}$",
-    (lowcode.meta.ui_list) = true,
-    (lowcode.meta.ui_unique) = true
-  ];
-}
-```
-
-说明：
-- `ui_unique=true` 后，后续编辑时该字段不可修改；保存会在当前 app 下做唯一性校验。
-- 旧注释风格（`@label/@required/@pattern/...`）仍兼容，但建议逐步迁移到 FieldOptions。
-
-### 7.2 EnumValueOptions（推荐）
-
-`select` / `checkbox-group` 可由 enum 直接生成，且每个枚举项可定义 `label/value`：
-
-```proto
-import "common/options.proto";
-
-enum Role {
-  ROLE_UNSPECIFIED = 0 [
-    (lowcode.meta.ui_enum_label) = "请选择角色",
-    (lowcode.meta.ui_enum_value) = ""
-  ];
-  ENGINEER = 1 [
-    (lowcode.meta.ui_enum_label) = "工程师",
-    (lowcode.meta.ui_enum_value) = "engineer"
-  ];
-}
-```
-
-前端最终选项格式：
-- `{ label: "工程师", value: "engineer" }`
-- `{ label: "设计师", value: "designer" }`
-
-## 8. API 概览（V1）
-
-```txt
-GET    /apps
-GET    /apps/:appId/forms
-GET    /apps/:appId/data
-GET    /apps/:appId/data/unique/:uniqueValue
-POST   /apps/:appId/data
-PATCH  /apps/:appId/data/:dataId
-POST   /apps/:appId/data/:dataId/publish
-DELETE /apps/:appId/data/:dataId
-
-POST   /forms
-GET    /forms/:formName
-GET    /forms/:formName/:version
-POST   /forms/:formName/publish
-
-POST   /data/:formName/:version
-GET    /data/:formName
-```
-
-`GET /apps/:appId/data` 支持查询参数：
-- `scope=active`（默认，仅正常数据）
-- `scope=deleted`（仅已删除数据）
-- `scope=all`（全部）
-
-删除语义（V1）：
-- `DELETE /apps/:appId/data/:dataId` 为软删除：该记录在列表和 unique 查询中不可见（视为 dev/prd 均不可查）。
-- 软删除后，若进入同一条记录的编辑页并再次提交，将恢复为 dev 版本。
-- 恢复时不会自动恢复 prd 快照，需要再次点击“发布”才会更新 prd。
-
-## 9. 数据模型（Mongo）
-
-### forms
-- tenantId
-- appId
-- formName
-- version
-- status (`draft | published`)
-- schema
-- createdAt / updatedAt
-
-### form_data
-- tenantId
-- appId
-- formName (dev)
-- version (dev)
-- data (dev)
-- prdFormName (published snapshot)
-- prdVersion (published snapshot)
-- prdData (published snapshot)
-- prdUpdatedAt
-- createdAt / updatedAt
-
-## 10. 常用命令
+## 🖥️ 7.2 Frontend (Admin / Web)
 
 ```bash
-pnpm typecheck
-pnpm build
-pnpm dev
-pnpm dev:ui
-pnpm dev:server
-pnpm proto:gen
+pnpm --filter @lowcode/admin build
+pnpm --filter @lowcode/web build
 ```
 
-## 11. V1 验收标准（建议）
+Build outputs:
+- `apps/admin/dist`
+- `apps/web/dist`
 
-- `pnpm typecheck` 全部通过。
-- Server 能连接 Mongo 并启动成功。
-- Admin 可完成：应用列表 -> 数据列表 -> 新增 -> 修改 -> 删除。
-- 自动表单在新增/修改页可正确渲染。
+You can host them via Nginx or object storage/CDN.
 
-## 12. 下一阶段建议（V1.1）
+> Note: `apps/admin/src/main.tsx` and `apps/web/src/main.tsx` currently use fixed `API_BASE`. Update them to your gateway/domain before production build.
 
-1. Admin 数据页增加筛选、分页、搜索与批量操作。  
-2. 自动表单支持更丰富的嵌套字段编辑器（Object/Array<Object> 可视化）。  
-3. 服务端补充审计日志、发布流约束、基础 RBAC。  
-4. Proto 解析到表单 schema 的自动同步流程（减少手工创建 form）。
+## 🐳 7.3 Docker (provided samples)
 
----
+```bash
+# Server image
+Dockerfile: infra/docker/server.Dockerfile
 
-如需发布到 Git，建议在首个 Release Tag 附上：
-- Mongo 初始化说明
-- V1 已知限制清单
+# Web image
+Dockerfile: infra/docker/web.Dockerfile
+```
+
+These are baseline Docker samples. For production, you should add:
+- multi-stage builds
+- health checks
+- runtime env injection
+- reverse proxy/static asset strategy
+
+## 🔌 8. API Overview
+
+Core routes (subset):
+- `GET /apps`
+- `GET /apps/:appId/forms`
+- `GET /apps/:appId/data`
+- `POST /apps/:appId/data`
+- `PATCH /apps/:appId/data/:dataId`
+- `POST /apps/:appId/data/:dataId/publish`
+- `DELETE /apps/:appId/data/:dataId`
+
+Detailed API contracts are maintained in GitHub Wiki.
+
+## 🩺 9. Troubleshooting
+
+### Mongo connection error (`ECONNREFUSED 127.0.0.1:27017`)
+
+- Ensure MongoDB is running
+- Ensure `MONGO_URI` is correct
+- Check whether port 27017 is occupied
+
+### `protoc not found`
+
+- Install protobuf compiler and retry
+- Required only for `pnpm proto:gen`
+
+### Frontend starts but no data appears
+
+- Ensure server is running on `3000`
+- Ensure `API_BASE` points to the correct backend URL
+- Ensure tenant header matches expected value (default `demo-tenant`)
+
+## 🗺️ 10. Roadmap (High-Level)
+
+- Phase 1: Form System (current)
+- Phase 2: Page-level Low-code
+- Phase 3: Workflow Orchestration
+- Phase 4: Visual Designer
+- Phase 5: Plugin Marketplace
+
+## 📄 11. License
+
+No open-source license is declared yet. Add a LICENSE file before public distribution.
