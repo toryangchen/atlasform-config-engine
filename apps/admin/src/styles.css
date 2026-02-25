@@ -52,6 +52,17 @@ body {
   gap: 10px;
 }
 
+.header-home-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.header-home-btn:hover .brand-title {
+  color: var(--ios-brand);
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -125,7 +136,7 @@ body {
 }
 
 .app-menu .ant-menu-item:hover {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(10, 132, 255, 0.14) !important;
 }
 
 .app-menu .ant-menu-item-active,
@@ -197,6 +208,25 @@ body {
 
 .list-toolbar-search {
   width: min(500px, 60vw);
+}
+
+.list-toolbar-search.ant-input-affix-wrapper {
+  min-height: 38px;
+  padding-inline: 11px;
+}
+
+.list-toolbar-search.ant-input-affix-wrapper .ant-input {
+  line-height: 1.45;
+  padding-left: 2px;
+  padding-inline-end: 10px;
+}
+
+.list-toolbar-search.ant-input-affix-wrapper .ant-input-suffix {
+  margin-inline-start: 8px;
+}
+
+.list-toolbar-search.ant-input-affix-wrapper .ant-input-clear-icon {
+  margin-inline-end: 6px;
 }
 
 .list-toolbar-actions {

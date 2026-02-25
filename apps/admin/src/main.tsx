@@ -23,7 +23,7 @@ import {
   message
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { AppstoreAddOutlined } from "@ant-design/icons";
+import { AppstoreAddOutlined, SearchOutlined } from "@ant-design/icons";
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import ReactDiffViewer from "react-diff-viewer";
 import { componentRegistry } from "@lowcode/component-registry";
@@ -331,10 +331,10 @@ function AppLayout() {
   return (
     <Layout className="admin-shell">
       <Header className="admin-header sticky-top">
-        <div className="header-left">
+        <button type="button" className="header-left header-home-btn" onClick={() => navigate("/apps")}>
           <div className="brand-dot" />
           <Typography.Text className="brand-title">AtlasForm Config Engine</Typography.Text>
-        </div>
+        </button>
         <div className="header-right">
           <Button
             type="text"
@@ -434,12 +434,13 @@ function AppsPage() {
 
       <Card className="panel-card" bordered={false}>
         <div className="list-toolbar">
-          <Input.Search
+          <Input
             allowClear
             placeholder="搜索 应用名 / 应用描述 / appId / proto 文件"
             className="list-toolbar-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            suffix={<SearchOutlined />}
           />
           <Space className="list-toolbar-actions">
             <Button onClick={() => void load()} loading={loading}>
@@ -625,12 +626,13 @@ function DataListPage() {
 
       <Card className="panel-card" bordered={false}>
         <div className="list-toolbar">
-          <Input.Search
+          <Input
             allowClear
             placeholder="搜索表格字段 / 数据内容"
             className="list-toolbar-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            suffix={<SearchOutlined />}
           />
           <Checkbox checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)}>
             已删除
