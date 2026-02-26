@@ -10,6 +10,12 @@ Proto 驱动的配置化低代码引擎（非拖拽），面向长期产品化�
 - NestJS + MongoDB 的后端 API
 - 前后端共享类型与运行时渲染引擎
 
+## 🎯 Web 演示（无需服务器）
+
+- `apps/web` 运行在 **Generated TS Mode**（无需后端）。
+- 数据与 schema 来自 `packages/shared-types/src/generated` 生成文件。
+- 可直接部署到 GitHub Pages 做产品体验展示。
+
 > Proto 字段解析规则、注解细则等文档将迁移到 GitHub Wiki，本 README 仅保留使用与运维信息。
 
 ## 🚀 1. Tech Stack

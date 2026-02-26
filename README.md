@@ -15,6 +15,12 @@ This project currently focuses on multi-app, form-driven data management and pro
 - NestJS + MongoDB backend APIs
 - Shared types across frontend/backend and runtime form rendering
 
+## 🎯 Web Demo (No Server)
+
+- `apps/web` runs in **Generated TS Mode** (no backend required).
+- Data/schema are built from generated files in `packages/shared-types/src/generated`.
+- It can be deployed directly to GitHub Pages for product preview.
+
 > Detailed Proto parsing/annotation rules are intentionally moved to GitHub Wiki. This README focuses on usage and operations.
 
 ## 🚀 1. Tech Stack

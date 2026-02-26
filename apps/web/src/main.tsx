@@ -1,12 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { Alert, Checkbox, ConfigProvider, Empty, Input, InputNumber, Select as AntdSelect, Space, Spin, Switch as AntdSwitch, Typography } from "antd";
+import { Alert, Button, Card, Checkbox, ConfigProvider, Empty, Form, Input, InputNumber, Modal, Select as AntdSelect, Space, Switch as AntdSwitch, Typography } from "antd";
 import "antd/dist/reset.css";
 import { componentRegistry } from "@lowcode/component-registry";
 import { ArrayObjectTableField, ArrayStringTableField, FormRenderer, MultiImageUploadField, ObjectDrawerField, SingleImageUploadField } from "@lowcode/form-engine";
 import { PluginManager, auditPlugin } from "@lowcode/plugin-system";
 import { domainToRuntime } from "@lowcode/schema-runtime";
 import type { DomainFieldSchema, DomainFormSchema, RuntimeFormSchema } from "@lowcode/shared-types";
+import { generatedManifest } from "../../../packages/shared-types/src/generated/lowcode-manifest";
 import { RuntimeProvider } from "./lowcode/runtime-context";
 
 interface AppDefinition {
@@ -25,7 +26,6 @@ interface FormItem {
   schema: Record<string, unknown>;
 }
 
-const API_BASE = "http://localhost:3000";
 const TENANT = "demo-tenant";
 
 componentRegistry.registerComponent("string", Input);
@@ -45,6 +45,40 @@ componentRegistry.registerComponent("array-image", MultiImageUploadField);
 
 const pluginManager = new PluginManager();
 pluginManager.use(auditPlugin);
+const LOCAL_SOURCE: { apps: AppDefinition[]; formsByApp: Record<string, FormItem[]> } = {
+  apps: [...generatedManifest.apps] as unknown as AppDefinition[],
+  formsByApp: { ...generatedManifest.formsByApp } as unknown as Record<string, FormItem[]>
+};
+const protoTextModules = import.meta.glob("../../../packages/proto-core/proto/*.proto", {
+  query: "?raw",
+  import: "default",
+  eager: true
+}) as Record<string, string>;
+const protoTextByApp = Object.fromEntries(
+  Object.entries(protoTextModules).map(([path, raw]) => {
+    const file = path.split("/").pop() ?? "";
+    const appId = file.replace(/\.proto$/i, "");
+    return [appId, raw];
+  })
+) as Record<string, string>;
+
+function normalizeOptions(input: unknown): Array<string | { label: string; value: string }> | null {
+  if (!Array.isArray(input)) return null;
+  const out: Array<string | { label: string; value: string }> = [];
+  for (const item of input) {
+    if (typeof item === "string") {
+      out.push(item);
+      continue;
+    }
+    if (item && typeof item === "object") {
+      const record = item as Record<string, unknown>;
+      if (typeof record.label === "string" && typeof record.value === "string") {
+        out.push({ label: record.label, value: record.value });
+      }
+    }
+  }
+  return out.length > 0 ? out : null;
+}
 
 function parseDomainField(raw: Record<string, unknown>): DomainFieldSchema | null {
   const key = typeof raw.key === "string" ? raw.key : typeof raw.name === "string" ? raw.name : null;
@@ -59,7 +93,7 @@ function parseDomainField(raw: Record<string, unknown>): DomainFieldSchema | nul
         : typeof raw.type === "string"
           ? raw.type
           : "string";
-  const options = Array.isArray(raw.options) ? (raw.options as string[]) : null;
+  const options = normalizeOptions(raw.options);
   const itemType =
     raw.itemType === "string" || raw.itemType === "number" || raw.itemType === "boolean" || raw.itemType === "object"
       ? raw.itemType
@@ -130,11 +164,12 @@ function toRuntimeSchema(form: FormItem | undefined): RuntimeFormSchema | null {
 
   runtime.fields = runtime.fields.map((field) => {
     if (field.componentType === "select" || field.componentType === "checkbox-group") {
+      const options = normalizeOptions(field.props.options);
       return {
         ...field,
         props: {
           ...field.props,
-          options: (Array.isArray(field.props.options) ? (field.props.options as string[]) : []).map((v) => ({ label: v, value: v }))
+          options: (options ?? []).map((item) => (typeof item === "string" ? { label: item, value: item } : item))
         }
       };
     }
@@ -145,67 +180,172 @@ function toRuntimeSchema(form: FormItem | undefined): RuntimeFormSchema | null {
 }
 
 function RuntimeApp() {
-  const [apps, setApps] = React.useState<AppDefinition[]>([]);
-  const [selectedAppId, setSelectedAppId] = React.useState("");
-  const [forms, setForms] = React.useState<FormItem[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState("");
-
-  React.useEffect(() => {
-    const run = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const appsRes = await fetch(`${API_BASE}/apps`, { headers: { "x-tenant-id": TENANT } });
-        if (!appsRes.ok) throw new Error(await appsRes.text());
-        const appList = (await appsRes.json()) as AppDefinition[];
-        setApps(appList);
-        const appId = selectedAppId || appList[0]?.appId || "";
-        setSelectedAppId(appId);
-        if (!appId) {
-          setForms([]);
-          return;
-        }
-        const formsRes = await fetch(`${API_BASE}/apps/${appId}/forms`, { headers: { "x-tenant-id": TENANT } });
-        if (!formsRes.ok) throw new Error(await formsRes.text());
-        setForms((await formsRes.json()) as FormItem[]);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load runtime schema");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void run();
-  }, [selectedAppId]);
-
+  const [form] = Form.useForm();
+  const [selectedAppId, setSelectedAppId] = React.useState(LOCAL_SOURCE.apps[0]?.appId ?? "");
+  const [jsonPreviewOpen, setJsonPreviewOpen] = React.useState(false);
+  const [jsonPreview, setJsonPreview] = React.useState("{}");
+  const forms = selectedAppId ? (LOCAL_SOURCE.formsByApp[selectedAppId] ?? []) : [];
   const runtimeSchema = React.useMemo(() => toRuntimeSchema(forms[0]), [forms]);
+  const selectedApp = React.useMemo(() => LOCAL_SOURCE.apps.find((app) => app.appId === selectedAppId), [selectedAppId]);
+  const protoSource = selectedAppId ? (protoTextByApp[selectedAppId] ?? "") : "";
+  const protoLines = React.useMemo(() => (protoSource ? protoSource.split("\n") : []), [protoSource]);
+  const NAV_HEIGHT = 64;
+
+  const handleSave = React.useCallback(async () => {
+    try {
+      const values = await form.validateFields();
+      setJsonPreview(JSON.stringify(values, null, 2));
+      setJsonPreviewOpen(true);
+    } catch {
+      // antd will display field errors
+    }
+  }, [form]);
+
+  const handleCloseJsonPreview = React.useCallback(() => {
+    setJsonPreviewOpen(false);
+  }, []);
 
   return (
-    <div style={{ maxWidth: 820, margin: "32px auto", padding: 16 }}>
-      <Space direction="vertical" size={16} style={{ width: "100%" }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          AtlasForm Runtime
-        </Typography.Title>
-        <AntdSelect
-          value={selectedAppId || null}
-          options={apps.map((a) => ({ label: `${a.name} (${a.appId})`, value: a.appId }))}
-          placeholder="Select app"
-          onChange={(v) => setSelectedAppId(v)}
+    <div style={{ width: "100%", padding: "0 16px 24px", minHeight: "100vh" }}>
+      <Space direction="vertical" size={8} style={{ width: "100%" }}>
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 20,
+            background: "#fff",
+            borderBottom: "1px solid #f0f0f0",
+            height: NAV_HEIGHT,
+            display: "flex",
+            alignItems: "center"
+          }}
+        >
+          <div style={{ width: "100%", maxWidth: 1400, margin: "0 auto" }}>
+            <Space style={{ justifyContent: "space-between", width: "100%" }}>
+              <Typography.Title level={3} style={{ margin: 0 }}>
+                AtlasForm Config Engine (Runtime Demo)
+              </Typography.Title>
+              <AntdSelect
+                style={{ minWidth: 280 }}
+                value={selectedAppId || null}
+                options={LOCAL_SOURCE.apps.map((a) => ({ label: `${a.name} (${a.appId})`, value: a.appId }))}
+                placeholder="Select app"
+                onChange={(v) => setSelectedAppId(v)}
+              />
+            </Space>
+          </div>
+        </div>
+        <div style={{ height: NAV_HEIGHT }} />
+        <Alert
+          type="info"
+          showIcon
+          message="在 Git 中修改 .proto 并执行 proto:gen 后，重新部署即可看到表单结构变化。当前 Demo 不与后端交互，不会存储任何用户提交的表单数据。"
+          style={{ width: "100%", maxWidth: 1400, margin: "0 auto" }}
         />
+        <div style={{ width: "100%", maxWidth: 1400, margin: "0 auto" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(380px, 1fr) minmax(420px, 1fr)",
+            gap: 16,
+            alignItems: "start"
+          }}
+        >
+          <Card
+            title={`Proto Source${selectedApp ? ` · ${selectedApp.protoFile}` : ""}`}
+            styles={{ body: { padding: 0 } }}
+            style={{ boxShadow: "0 10px 24px rgba(15, 23, 42, 0.08)" }}
+          >
+            {!protoSource ? (
+              <div style={{ padding: 16 }}>
+                <Empty description="No proto source found for selected app" />
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: "#0f172a",
+                  color: "#e2e8f0",
+                  borderTop: "1px solid #1e293b",
+                  borderBottomLeftRadius: 8,
+                  borderBottomRightRadius: 8
+                }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "56px 1fr",
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                    fontSize: 12,
+                    lineHeight: 1.7
+                  }}
+                >
+                  <div style={{ background: "#0b1220", color: "#64748b", textAlign: "right", padding: "14px 10px", userSelect: "none" }}>
+                    {protoLines.map((_, index) => (
+                      <div key={`line-no-${index + 1}`}>{index + 1}</div>
+                    ))}
+                  </div>
+                  <pre style={{ margin: 0, padding: "14px 16px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                    <code>{protoSource}</code>
+                  </pre>
+                </div>
+              </div>
+            )}
+          </Card>
 
-        {loading ? <Spin /> : null}
-        {!loading && error ? <Alert type="error" message="Load failed" description={error} showIcon /> : null}
-        {!loading && !error && !runtimeSchema ? <Empty description="No renderable schema found for this app" /> : null}
-        {!loading && !error && runtimeSchema ? <FormRenderer schema={runtimeSchema} /> : null}
+          <Card
+            title={`Rendered Form${selectedApp ? ` · ${selectedApp.name}` : ""}`}
+            extra={
+              <Button type="primary" onClick={() => void handleSave()} disabled={!runtimeSchema}>
+                预览表单json
+              </Button>
+            }
+            style={{ boxShadow: "0 10px 24px rgba(15, 23, 42, 0.08)" }}
+          >
+            {selectedApp ? (
+              <Space direction="vertical" size={2} style={{ width: "100%", marginBottom: 12 }}>
+                <Typography.Title level={5} style={{ margin: 0 }}>
+                  {selectedApp.name}
+                </Typography.Title>
+                <Typography.Text type="secondary">{selectedApp.description}</Typography.Text>
+              </Space>
+            ) : null}
+            {!runtimeSchema ? <Empty description="No renderable schema found" /> : <FormRenderer schema={runtimeSchema} form={form} />}
+          </Card>
+        </div>
+        </div>
       </Space>
+      <Modal
+        title="当前表单 JSON"
+        open={jsonPreviewOpen}
+        onCancel={handleCloseJsonPreview}
+        footer={null}
+        width={760}
+      >
+        <div style={{ height: "min(68vh, 620px)", overflow: "auto" }}>
+          <pre
+            style={{
+              margin: 0,
+              padding: 12,
+              borderRadius: 8,
+              background: "#0f172a",
+              color: "#e2e8f0",
+              overflow: "auto",
+              minHeight: "100%"
+            }}
+          >
+            <code>{jsonPreview}</code>
+          </pre>
+        </div>
+      </Modal>
     </div>
   );
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <RuntimeProvider tenantId="demo-tenant" pluginManager={pluginManager}>
+    <RuntimeProvider tenantId={TENANT} pluginManager={pluginManager}>
       <ConfigProvider>
         <RuntimeApp />
       </ConfigProvider>

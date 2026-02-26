@@ -13,6 +13,10 @@
       "types": "./src/generated/profile_app.ts",
       "default": "./src/generated/profile_app.ts"
     },
+    "./generated/user_info": {
+      "types": "./src/generated/user_info.ts",
+      "default": "./src/generated/user_info.ts"
+    },
     "./domain/form-domain": {
       "types": "./src/domain/form-domain.ts",
       "default": "./src/domain/form-domain.ts"

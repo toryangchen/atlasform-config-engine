@@ -26,4 +26,6 @@ pnpm exec protoc \
   -I "$PROTO_DIR" \
   $PROTO_FILES
 
+node "$ROOT_DIR/packages/proto-core/scripts/gen-manifest.mjs"
+
 echo "proto generated to shared-types"
