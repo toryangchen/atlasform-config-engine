@@ -283,8 +283,34 @@ export const generatedManifest = {
               "type": "textarea"
             },
             {
+              "name": "jsonStr",
+              "label": "json字符串(会校验json格式)",
+              "required": false,
+              "rules": [
+                {
+                  "type": "json"
+                }
+              ],
+              "list_visible": false,
+              "unique_key": false,
+              "type": "json"
+            },
+            {
+              "name": "mdStr",
+              "label": "markdown(会校验markdown格式)",
+              "required": false,
+              "rules": [
+                {
+                  "type": "markdown"
+                }
+              ],
+              "list_visible": false,
+              "unique_key": false,
+              "type": "markdown"
+            },
+            {
               "name": "avatar",
-              "label": "Avatar",
+              "label": "图片(可上传单张图片)",
               "required": false,
               "rules": [],
               "list_visible": false,
@@ -293,7 +319,7 @@ export const generatedManifest = {
             },
             {
               "name": "photos",
-              "label": "Photos",
+              "label": "图片(可上传多张图片)",
               "required": false,
               "rules": [],
               "list_visible": false,

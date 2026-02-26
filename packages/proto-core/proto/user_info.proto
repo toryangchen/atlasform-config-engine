@@ -37,12 +37,24 @@ message UserInfoForm {
     (lowcode.meta.ui_label) = "个人简介",
     (lowcode.meta.ui_widget) = "textarea"
   ];
+
+  string jsonStr = 6 [
+    (lowcode.meta.ui_label) = "json字符串(会校验json格式)",
+    (lowcode.meta.ui_widget) = "json"
+  ];
+
+  string mdStr = 7 [
+    (lowcode.meta.ui_label) = "markdown(会校验markdown格式)",
+    (lowcode.meta.ui_widget) = "markdown"
+  ];
   
-  string avatar = 6 [
+  string avatar = 8 [
+    (lowcode.meta.ui_label) = "图片(可上传单张图片)",
     (lowcode.meta.ui_widget) = "image"
   ];
 
-  repeated string photos = 7 [
+  repeated string photos = 9 [
+    (lowcode.meta.ui_label) = "图片(可上传多张图片)",
     (lowcode.meta.ui_widget) = "image"
   ];
 }

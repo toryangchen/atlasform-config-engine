@@ -16,12 +16,14 @@ export interface UserInfoForm {
   school: string;
   age: number;
   bio: string;
+  jsonStr: string;
+  mdStr: string;
   avatar: string;
   photos: string[];
 }
 
 function createBaseUserInfoForm(): UserInfoForm {
-  return { userId: "", phone: "", school: "", age: 0, bio: "", avatar: "", photos: [] };
+  return { userId: "", phone: "", school: "", age: 0, bio: "", jsonStr: "", mdStr: "", avatar: "", photos: [] };
 }
 
 export const UserInfoForm: MessageFns<UserInfoForm> = {
@@ -41,11 +43,17 @@ export const UserInfoForm: MessageFns<UserInfoForm> = {
     if (message.bio !== "") {
       writer.uint32(42).string(message.bio);
     }
+    if (message.jsonStr !== "") {
+      writer.uint32(50).string(message.jsonStr);
+    }
+    if (message.mdStr !== "") {
+      writer.uint32(58).string(message.mdStr);
+    }
     if (message.avatar !== "") {
-      writer.uint32(50).string(message.avatar);
+      writer.uint32(66).string(message.avatar);
     }
     for (const v of message.photos) {
-      writer.uint32(58).string(v!);
+      writer.uint32(74).string(v!);
     }
     return writer;
   },
@@ -102,11 +110,27 @@ export const UserInfoForm: MessageFns<UserInfoForm> = {
             break;
           }
 
-          message.avatar = reader.string();
+          message.jsonStr = reader.string();
           continue;
         }
         case 7: {
           if (tag !== 58) {
+            break;
+          }
+
+          message.mdStr = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.avatar = reader.string();
+          continue;
+        }
+        case 9: {
+          if (tag !== 74) {
             break;
           }
 
@@ -129,6 +153,8 @@ export const UserInfoForm: MessageFns<UserInfoForm> = {
       school: isSet(object.school) ? globalThis.String(object.school) : "",
       age: isSet(object.age) ? globalThis.Number(object.age) : 0,
       bio: isSet(object.bio) ? globalThis.String(object.bio) : "",
+      jsonStr: isSet(object.jsonStr) ? globalThis.String(object.jsonStr) : "",
+      mdStr: isSet(object.mdStr) ? globalThis.String(object.mdStr) : "",
       avatar: isSet(object.avatar) ? globalThis.String(object.avatar) : "",
       photos: globalThis.Array.isArray(object?.photos) ? object.photos.map((e: any) => globalThis.String(e)) : [],
     };
@@ -151,6 +177,12 @@ export const UserInfoForm: MessageFns<UserInfoForm> = {
     if (message.bio !== "") {
       obj.bio = message.bio;
     }
+    if (message.jsonStr !== "") {
+      obj.jsonStr = message.jsonStr;
+    }
+    if (message.mdStr !== "") {
+      obj.mdStr = message.mdStr;
+    }
     if (message.avatar !== "") {
       obj.avatar = message.avatar;
     }
@@ -170,6 +202,8 @@ export const UserInfoForm: MessageFns<UserInfoForm> = {
     message.school = object.school ?? "";
     message.age = object.age ?? 0;
     message.bio = object.bio ?? "";
+    message.jsonStr = object.jsonStr ?? "";
+    message.mdStr = object.mdStr ?? "";
     message.avatar = object.avatar ?? "";
     message.photos = object.photos?.map((e) => e) || [];
     return message;

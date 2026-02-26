@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+set -eu
+
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -E '\.proto$' >/dev/null 2>&1; then
+  exit 0
+fi
+
+echo "[pre-commit] .proto changed, running pnpm proto:gen..."
+pnpm proto:gen
+
+# Stage regenerated artifacts (including deletions)
+git add -A packages/shared-types/src/generated
