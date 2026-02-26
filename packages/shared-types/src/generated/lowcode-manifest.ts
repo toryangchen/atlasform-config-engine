@@ -4,19 +4,135 @@
 export const generatedManifest = {
   "apps": [
     {
+      "appId": "nested_info",
+      "name": "嵌套表单",
+      "description": "json嵌套数据结构示例，可嵌套Object、Array<Object>等",
+      "protoFile": "nested_info.proto"
+    },
+    {
       "appId": "profile_app",
       "name": "Profile App",
-      "description": "用户档案管理应用，包含基础信息、档案与经历。",
+      "description": "单层表单展示基础信息",
       "protoFile": "profile_app.proto"
     },
     {
       "appId": "user_info",
-      "name": "User Info App",
+      "name": "用户信息",
       "description": "用户信息录入应用，适合基础资料与图片上传场景。",
       "protoFile": "user_info.proto"
     }
   ],
   "formsByApp": {
+    "nested_info": [
+      {
+        "_id": "generated-nested_info-NestedInfoForm",
+        "appId": "nested_info",
+        "formName": "NestedInfoForm",
+        "version": "1.0.0",
+        "status": "published",
+        "schema": {
+          "fields": [
+            {
+              "name": "formId",
+              "label": "表单ID",
+              "required": true,
+              "rules": [],
+              "list_visible": true,
+              "unique_key": true,
+              "type": "string"
+            },
+            {
+              "name": "tags",
+              "label": "Tags",
+              "required": false,
+              "rules": [],
+              "list_visible": false,
+              "unique_key": false,
+              "type": "array",
+              "item_type": "string"
+            },
+            {
+              "name": "profile",
+              "label": "档案",
+              "required": false,
+              "rules": [],
+              "list_visible": true,
+              "unique_key": false,
+              "type": "object",
+              "object_fields": [
+                {
+                  "name": "email",
+                  "label": "Email",
+                  "required": false,
+                  "rules": [],
+                  "list_visible": false,
+                  "unique_key": false,
+                  "type": "string"
+                },
+                {
+                  "name": "address",
+                  "label": "Address",
+                  "required": false,
+                  "rules": [],
+                  "list_visible": false,
+                  "unique_key": false,
+                  "type": "array<object>",
+                  "item_object_fields": [
+                    {
+                      "name": "city",
+                      "label": "City",
+                      "required": false,
+                      "rules": [],
+                      "list_visible": false,
+                      "unique_key": false,
+                      "type": "string"
+                    },
+                    {
+                      "name": "zipcode",
+                      "label": "Zipcode",
+                      "required": false,
+                      "rules": [],
+                      "list_visible": false,
+                      "unique_key": false,
+                      "type": "string"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "experiences",
+              "label": "经历",
+              "required": false,
+              "rules": [],
+              "list_visible": true,
+              "unique_key": false,
+              "type": "array<object>",
+              "item_object_fields": [
+                {
+                  "name": "company",
+                  "label": "Company",
+                  "required": false,
+                  "rules": [],
+                  "list_visible": false,
+                  "unique_key": false,
+                  "type": "string"
+                },
+                {
+                  "name": "years",
+                  "label": "Years",
+                  "required": false,
+                  "rules": [],
+                  "list_visible": false,
+                  "unique_key": false,
+                  "type": "number"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
     "profile_app": [
       {
         "_id": "generated-profile_app-ProfileAppForm",
@@ -140,84 +256,6 @@ export const generatedManifest = {
               "unique_key": false,
               "type": "array",
               "item_type": "string"
-            },
-            {
-              "name": "profile",
-              "label": "档案",
-              "required": false,
-              "rules": [],
-              "list_visible": true,
-              "unique_key": false,
-              "type": "object",
-              "object_fields": [
-                {
-                  "name": "email",
-                  "label": "Email",
-                  "required": false,
-                  "rules": [],
-                  "list_visible": false,
-                  "unique_key": false,
-                  "type": "string"
-                },
-                {
-                  "name": "address",
-                  "label": "Address",
-                  "required": false,
-                  "rules": [],
-                  "list_visible": false,
-                  "unique_key": false,
-                  "type": "array<object>",
-                  "item_object_fields": [
-                    {
-                      "name": "city",
-                      "label": "City",
-                      "required": false,
-                      "rules": [],
-                      "list_visible": false,
-                      "unique_key": false,
-                      "type": "string"
-                    },
-                    {
-                      "name": "zipcode",
-                      "label": "Zipcode",
-                      "required": false,
-                      "rules": [],
-                      "list_visible": false,
-                      "unique_key": false,
-                      "type": "string"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "name": "experiences",
-              "label": "经历",
-              "required": false,
-              "rules": [],
-              "list_visible": true,
-              "unique_key": false,
-              "type": "array<object>",
-              "item_object_fields": [
-                {
-                  "name": "company",
-                  "label": "Company",
-                  "required": false,
-                  "rules": [],
-                  "list_visible": false,
-                  "unique_key": false,
-                  "type": "string"
-                },
-                {
-                  "name": "years",
-                  "label": "Years",
-                  "required": false,
-                  "rules": [],
-                  "list_visible": false,
-                  "unique_key": false,
-                  "type": "number"
-                }
-              ]
             }
           ]
         }

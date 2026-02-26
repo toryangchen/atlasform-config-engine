@@ -93,21 +93,6 @@ export function genderTypeToJSON(object: GenderType): string {
   }
 }
 
-export interface ProfileAddress {
-  city: string;
-  zipcode: string;
-}
-
-export interface ProfileObject {
-  email: string;
-  address: ProfileAddress[];
-}
-
-export interface ExperienceItem {
-  company: string;
-  years: number;
-}
-
 /** Root message for admin runtime form generation. */
 export interface ProfileAppForm {
   username: string;
@@ -118,253 +103,10 @@ export interface ProfileAppForm {
   gender: GenderType;
   agreePolicy: boolean;
   tags: string[];
-  profile?: ProfileObject | undefined;
-  experiences: ExperienceItem[];
 }
-
-function createBaseProfileAddress(): ProfileAddress {
-  return { city: "", zipcode: "" };
-}
-
-export const ProfileAddress: MessageFns<ProfileAddress> = {
-  encode(message: ProfileAddress, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.city !== "") {
-      writer.uint32(10).string(message.city);
-    }
-    if (message.zipcode !== "") {
-      writer.uint32(18).string(message.zipcode);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): ProfileAddress {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseProfileAddress();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.city = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.zipcode = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ProfileAddress {
-    return {
-      city: isSet(object.city) ? globalThis.String(object.city) : "",
-      zipcode: isSet(object.zipcode) ? globalThis.String(object.zipcode) : "",
-    };
-  },
-
-  toJSON(message: ProfileAddress): unknown {
-    const obj: any = {};
-    if (message.city !== "") {
-      obj.city = message.city;
-    }
-    if (message.zipcode !== "") {
-      obj.zipcode = message.zipcode;
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<ProfileAddress>, I>>(base?: I): ProfileAddress {
-    return ProfileAddress.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<ProfileAddress>, I>>(object: I): ProfileAddress {
-    const message = createBaseProfileAddress();
-    message.city = object.city ?? "";
-    message.zipcode = object.zipcode ?? "";
-    return message;
-  },
-};
-
-function createBaseProfileObject(): ProfileObject {
-  return { email: "", address: [] };
-}
-
-export const ProfileObject: MessageFns<ProfileObject> = {
-  encode(message: ProfileObject, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.email !== "") {
-      writer.uint32(10).string(message.email);
-    }
-    for (const v of message.address) {
-      ProfileAddress.encode(v!, writer.uint32(18).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): ProfileObject {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseProfileObject();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.email = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.address.push(ProfileAddress.decode(reader, reader.uint32()));
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ProfileObject {
-    return {
-      email: isSet(object.email) ? globalThis.String(object.email) : "",
-      address: globalThis.Array.isArray(object?.address)
-        ? object.address.map((e: any) => ProfileAddress.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: ProfileObject): unknown {
-    const obj: any = {};
-    if (message.email !== "") {
-      obj.email = message.email;
-    }
-    if (message.address?.length) {
-      obj.address = message.address.map((e) => ProfileAddress.toJSON(e));
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<ProfileObject>, I>>(base?: I): ProfileObject {
-    return ProfileObject.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<ProfileObject>, I>>(object: I): ProfileObject {
-    const message = createBaseProfileObject();
-    message.email = object.email ?? "";
-    message.address = object.address?.map((e) => ProfileAddress.fromPartial(e)) || [];
-    return message;
-  },
-};
-
-function createBaseExperienceItem(): ExperienceItem {
-  return { company: "", years: 0 };
-}
-
-export const ExperienceItem: MessageFns<ExperienceItem> = {
-  encode(message: ExperienceItem, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.company !== "") {
-      writer.uint32(10).string(message.company);
-    }
-    if (message.years !== 0) {
-      writer.uint32(16).int32(message.years);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): ExperienceItem {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseExperienceItem();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.company = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 16) {
-            break;
-          }
-
-          message.years = reader.int32();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ExperienceItem {
-    return {
-      company: isSet(object.company) ? globalThis.String(object.company) : "",
-      years: isSet(object.years) ? globalThis.Number(object.years) : 0,
-    };
-  },
-
-  toJSON(message: ExperienceItem): unknown {
-    const obj: any = {};
-    if (message.company !== "") {
-      obj.company = message.company;
-    }
-    if (message.years !== 0) {
-      obj.years = Math.round(message.years);
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<ExperienceItem>, I>>(base?: I): ExperienceItem {
-    return ExperienceItem.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<ExperienceItem>, I>>(object: I): ExperienceItem {
-    const message = createBaseExperienceItem();
-    message.company = object.company ?? "";
-    message.years = object.years ?? 0;
-    return message;
-  },
-};
 
 function createBaseProfileAppForm(): ProfileAppForm {
-  return {
-    username: "",
-    fullName: "",
-    phone: "",
-    age: 0,
-    role: 0,
-    gender: 0,
-    agreePolicy: false,
-    tags: [],
-    profile: undefined,
-    experiences: [],
-  };
+  return { username: "", fullName: "", phone: "", age: 0, role: 0, gender: 0, agreePolicy: false, tags: [] };
 }
 
 export const ProfileAppForm: MessageFns<ProfileAppForm> = {
@@ -392,12 +134,6 @@ export const ProfileAppForm: MessageFns<ProfileAppForm> = {
     }
     for (const v of message.tags) {
       writer.uint32(50).string(v!);
-    }
-    if (message.profile !== undefined) {
-      ProfileObject.encode(message.profile, writer.uint32(58).fork()).join();
-    }
-    for (const v of message.experiences) {
-      ExperienceItem.encode(v!, writer.uint32(66).fork()).join();
     }
     return writer;
   },
@@ -473,22 +209,6 @@ export const ProfileAppForm: MessageFns<ProfileAppForm> = {
           message.tags.push(reader.string());
           continue;
         }
-        case 7: {
-          if (tag !== 58) {
-            break;
-          }
-
-          message.profile = ProfileObject.decode(reader, reader.uint32());
-          continue;
-        }
-        case 8: {
-          if (tag !== 66) {
-            break;
-          }
-
-          message.experiences.push(ExperienceItem.decode(reader, reader.uint32()));
-          continue;
-        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -516,10 +236,6 @@ export const ProfileAppForm: MessageFns<ProfileAppForm> = {
         ? globalThis.Boolean(object.agree_policy)
         : false,
       tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [],
-      profile: isSet(object.profile) ? ProfileObject.fromJSON(object.profile) : undefined,
-      experiences: globalThis.Array.isArray(object?.experiences)
-        ? object.experiences.map((e: any) => ExperienceItem.fromJSON(e))
-        : [],
     };
   },
 
@@ -549,12 +265,6 @@ export const ProfileAppForm: MessageFns<ProfileAppForm> = {
     if (message.tags?.length) {
       obj.tags = message.tags;
     }
-    if (message.profile !== undefined) {
-      obj.profile = ProfileObject.toJSON(message.profile);
-    }
-    if (message.experiences?.length) {
-      obj.experiences = message.experiences.map((e) => ExperienceItem.toJSON(e));
-    }
     return obj;
   },
 
@@ -571,10 +281,6 @@ export const ProfileAppForm: MessageFns<ProfileAppForm> = {
     message.gender = object.gender ?? 0;
     message.agreePolicy = object.agreePolicy ?? false;
     message.tags = object.tags?.map((e) => e) || [];
-    message.profile = (object.profile !== undefined && object.profile !== null)
-      ? ProfileObject.fromPartial(object.profile)
-      : undefined;
-    message.experiences = object.experiences?.map((e) => ExperienceItem.fromPartial(e)) || [];
     return message;
   },
 };

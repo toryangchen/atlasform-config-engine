@@ -4,7 +4,7 @@ package lowcode.profile;
 import "common/options.proto";
 
 option (lowcode.meta.app_name) = "Profile App";
-option (lowcode.meta.app_description) = "用户档案管理应用，包含基础信息、档案与经历。";
+option (lowcode.meta.app_description) = "单层表单展示基础信息";
 
 enum Role {
   ROLE_UNSPECIFIED = 0 [
@@ -40,21 +40,6 @@ enum GenderType {
   ];
 }
 
-message ProfileAddress {
-  string city = 1;
-  string zipcode = 2;
-}
-
-message ProfileObject {
-  string email = 1;
-  repeated ProfileAddress address = 2;
-}
-
-message ExperienceItem {
-  string company = 1;
-  int32 years = 2;
-}
-
 // Root message for admin runtime form generation.
 message ProfileAppForm {
   string username = 9 [
@@ -88,12 +73,4 @@ message ProfileAppForm {
   ];
   bool agree_policy = 5;
   repeated string tags = 6;
-  ProfileObject profile = 7 [
-    (lowcode.meta.ui_label) = "档案",
-    (lowcode.meta.ui_list) = true
-  ];
-  repeated ExperienceItem experiences = 8 [
-    (lowcode.meta.ui_label) = "经历",
-    (lowcode.meta.ui_list) = true
-  ];
 }

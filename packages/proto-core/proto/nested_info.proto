@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package lowcode.profile;
+import "common/options.proto";
+
+option (lowcode.meta.app_name) = "嵌套表单";
+option (lowcode.meta.app_description) = "json嵌套数据结构示例，可嵌套Object、Array<Object>等";
+
+message ProfileAddress {
+  string city = 1;
+  string zipcode = 2;
+}
+
+message ProfileObject {
+  string email = 1;
+  repeated ProfileAddress address = 2;
+}
+
+message ExperienceItem {
+  string company = 1;
+  int32 years = 2;
+}
+
+message NestedInfoForm {
+  
+  string formId = 1 [
+    (lowcode.meta.ui_label) = "表单ID",
+    (lowcode.meta.ui_unique) = true,
+    (lowcode.meta.ui_required) = true,
+    (lowcode.meta.ui_list) = true
+  ];
+
+  repeated string tags = 2;
+
+  ProfileObject profile = 3 [
+    (lowcode.meta.ui_label) = "档案",
+    (lowcode.meta.ui_list) = true
+  ];
+  
+  repeated ExperienceItem experiences = 4 [
+    (lowcode.meta.ui_label) = "经历",
+    (lowcode.meta.ui_list) = true
+  ];
+}
