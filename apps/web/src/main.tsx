@@ -14,12 +14,21 @@ interface AppDefinition {
   appId: string;
   name: string;
   description: string;
+  protos: ProtoDefinition[];
+}
+
+interface ProtoDefinition {
+  appId: string;
+  protoId: string;
+  name: string;
+  description: string;
   protoFile: string;
 }
 
 interface FormItem {
   _id: string;
   appId: string;
+  protoId: string;
   formName: string;
   version: string;
   status: "draft" | "published";
@@ -45,20 +54,29 @@ componentRegistry.registerComponent("array-image", MultiImageUploadField);
 
 const pluginManager = new PluginManager();
 pluginManager.use(auditPlugin);
-const LOCAL_SOURCE: { apps: AppDefinition[]; formsByApp: Record<string, FormItem[]> } = {
+const LOCAL_SOURCE: { apps: AppDefinition[]; formsByProto: Record<string, FormItem[]> } = {
   apps: [...generatedManifest.apps] as unknown as AppDefinition[],
-  formsByApp: { ...generatedManifest.formsByApp } as unknown as Record<string, FormItem[]>
+  formsByProto: { ...generatedManifest.formsByApp } as unknown as Record<string, FormItem[]>
 };
-const protoTextModules = import.meta.glob("../../../packages/proto-core/proto/*.proto", {
+const protoTextModules = import.meta.glob("../../../packages/proto-core/proto/**/*.proto", {
   query: "?raw",
   import: "default",
   eager: true
 }) as Record<string, string>;
-const protoTextByApp = Object.fromEntries(
+const protoTextByProto = Object.fromEntries(
   Object.entries(protoTextModules).map(([path, raw]) => {
-    const file = path.split("/").pop() ?? "";
+    const normalized = path.split("/proto/")[1] ?? path;
+    const relativePath = normalized.replace(/^\/+/, "");
+    const segments = relativePath.split("/");
+    if (segments.length > 1) {
+      const appId = segments[0] ?? "";
+      const file = segments[segments.length - 1] ?? "";
+      const protoId = file.replace(/\.proto$/i, "");
+      return [`${appId}:${protoId}`, raw];
+    }
+    const file = segments[0] ?? "";
     const appId = file.replace(/\.proto$/i, "");
-    return [appId, raw];
+    return [`${appId}:${appId}`, raw];
   })
 ) as Record<string, string>;
 
@@ -181,13 +199,30 @@ function toRuntimeSchema(form: FormItem | undefined): RuntimeFormSchema | null {
 
 function RuntimeApp() {
   const [form] = Form.useForm();
-  const [selectedAppId, setSelectedAppId] = React.useState(LOCAL_SOURCE.apps[0]?.appId ?? "");
+  const protoOptions = React.useMemo(
+    () =>
+      LOCAL_SOURCE.apps.flatMap((app) =>
+        app.protos.map((proto) => ({
+          key: `${app.appId}:${proto.protoId}`,
+          label: `${app.name} / ${proto.name}`,
+          app,
+          proto
+        }))
+      ),
+    []
+  );
+  const [selectedProtoKey, setSelectedProtoKey] = React.useState(protoOptions[0]?.key ?? "");
   const [jsonPreviewOpen, setJsonPreviewOpen] = React.useState(false);
   const [jsonPreview, setJsonPreview] = React.useState("{}");
-  const forms = selectedAppId ? (LOCAL_SOURCE.formsByApp[selectedAppId] ?? []) : [];
+  const selectedProtoOption = React.useMemo(
+    () => protoOptions.find((option) => option.key === selectedProtoKey) ?? null,
+    [protoOptions, selectedProtoKey]
+  );
+  const forms = selectedProtoKey ? (LOCAL_SOURCE.formsByProto[selectedProtoKey] ?? []) : [];
   const runtimeSchema = React.useMemo(() => toRuntimeSchema(forms[0]), [forms]);
-  const selectedApp = React.useMemo(() => LOCAL_SOURCE.apps.find((app) => app.appId === selectedAppId), [selectedAppId]);
-  const protoSource = selectedAppId ? (protoTextByApp[selectedAppId] ?? "") : "";
+  const selectedApp = selectedProtoOption?.app ?? null;
+  const selectedProto = selectedProtoOption?.proto ?? null;
+  const protoSource = selectedProtoKey ? (protoTextByProto[selectedProtoKey] ?? "") : "";
   const protoLines = React.useMemo(() => (protoSource ? protoSource.split("\n") : []), [protoSource]);
   const NAV_HEIGHT = 64;
 
@@ -229,10 +264,10 @@ function RuntimeApp() {
               </Typography.Title>
               <AntdSelect
                 style={{ minWidth: 280 }}
-                value={selectedAppId || null}
-                options={LOCAL_SOURCE.apps.map((a) => ({ label: `${a.name} (${a.appId})`, value: a.appId }))}
-                placeholder="Select app"
-                onChange={(v) => setSelectedAppId(v)}
+                value={selectedProtoKey || null}
+                options={protoOptions.map((option) => ({ label: option.label, value: option.key }))}
+                placeholder="Select proto"
+                onChange={(v) => setSelectedProtoKey(v)}
               />
             </Space>
           </div>
@@ -254,13 +289,13 @@ function RuntimeApp() {
           }}
         >
           <Card
-            title={`Proto Source${selectedApp ? ` · ${selectedApp.protoFile}` : ""}`}
+            title={`Proto Source${selectedProto ? ` · ${selectedProto.protoFile}` : ""}`}
             styles={{ body: { padding: 0 } }}
             style={{ boxShadow: "0 10px 24px rgba(15, 23, 42, 0.08)" }}
           >
             {!protoSource ? (
               <div style={{ padding: 16 }}>
-                <Empty description="No proto source found for selected app" />
+                <Empty description="No proto source found for selected proto" />
               </div>
             ) : (
               <div
@@ -295,7 +330,7 @@ function RuntimeApp() {
           </Card>
 
           <Card
-            title={`Rendered Form${selectedApp ? ` · ${selectedApp.name}` : ""}`}
+            title={`Rendered Form${selectedApp ? ` · ${selectedApp.name} / ${selectedProto?.name ?? ""}` : ""}`}
             extra={
               <Button type="primary" onClick={() => void handleSave()} disabled={!runtimeSchema}>
                 预览表单json
@@ -306,9 +341,9 @@ function RuntimeApp() {
             {selectedApp ? (
               <Space direction="vertical" size={2} style={{ width: "100%", marginBottom: 12 }}>
                 <Typography.Title level={5} style={{ margin: 0 }}>
-                  {selectedApp.name}
+                  {selectedApp.name} / {selectedProto?.name}
                 </Typography.Title>
-                <Typography.Text type="secondary">{selectedApp.description}</Typography.Text>
+                <Typography.Text type="secondary">{selectedProto?.description ?? selectedApp.description}</Typography.Text>
               </Space>
             ) : null}
             {!runtimeSchema ? <Empty description="No renderable schema found" /> : <FormRenderer schema={runtimeSchema} form={form} />}

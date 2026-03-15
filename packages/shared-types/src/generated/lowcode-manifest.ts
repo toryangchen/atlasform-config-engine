@@ -7,30 +7,57 @@ export const generatedManifest = {
       "appId": "nested_info",
       "name": "嵌套表单",
       "description": "json嵌套数据结构示例，可嵌套Object、Array<Object>等",
-      "protoFile": "nested_info.proto"
+      "protos": [
+        {
+          "appId": "nested_info",
+          "protoId": "nested_info",
+          "name": "Nested Info",
+          "description": "Generated from nested_info.proto",
+          "protoFile": "nested_info.proto"
+        }
+      ]
     },
     {
       "appId": "profile_app",
       "name": "Profile App",
       "description": "单层表单展示基础信息",
-      "protoFile": "profile_app.proto"
+      "protos": [
+        {
+          "appId": "profile_app",
+          "protoId": "profile_app",
+          "name": "Profile App",
+          "description": "Generated from profile_app.proto",
+          "protoFile": "profile_app.proto"
+        }
+      ]
     },
     {
       "appId": "user_info",
       "name": "用户信息",
       "description": "用户信息录入应用，适合基础资料与图片上传场景。",
-      "protoFile": "user_info.proto"
+      "protos": [
+        {
+          "appId": "user_info",
+          "protoId": "user_info",
+          "name": "User Info",
+          "description": "Generated from user_info.proto",
+          "protoFile": "user_info.proto"
+        }
+      ]
     }
   ],
   "formsByApp": {
-    "nested_info": [
+    "nested_info:nested_info": [
       {
-        "_id": "generated-nested_info-NestedInfoForm",
+        "_id": "generated-nested_info-nested_info-NestedInfoForm",
         "appId": "nested_info",
+        "protoId": "nested_info",
         "formName": "NestedInfoForm",
         "version": "1.0.0",
         "status": "published",
         "schema": {
+          "appId": "nested_info",
+          "protoId": "nested_info",
           "fields": [
             {
               "name": "formId",
@@ -133,14 +160,17 @@ export const generatedManifest = {
         }
       }
     ],
-    "profile_app": [
+    "profile_app:profile_app": [
       {
-        "_id": "generated-profile_app-ProfileAppForm",
+        "_id": "generated-profile_app-profile_app-ProfileAppForm",
         "appId": "profile_app",
+        "protoId": "profile_app",
         "formName": "ProfileAppForm",
         "version": "1.0.0",
         "status": "published",
         "schema": {
+          "appId": "profile_app",
+          "protoId": "profile_app",
           "fields": [
             {
               "name": "username",
@@ -261,14 +291,17 @@ export const generatedManifest = {
         }
       }
     ],
-    "user_info": [
+    "user_info:user_info": [
       {
-        "_id": "generated-user_info-UserInfoForm",
+        "_id": "generated-user_info-user_info-UserInfoForm",
         "appId": "user_info",
+        "protoId": "user_info",
         "formName": "UserInfoForm",
         "version": "1.0.0",
         "status": "published",
         "schema": {
+          "appId": "user_info",
+          "protoId": "user_info",
           "fields": [
             {
               "name": "userId",

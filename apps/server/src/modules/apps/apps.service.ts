@@ -1,15 +1,23 @@
 import { Injectable } from "@nestjs/common";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
 import { DataService } from "../data/data.service";
 import { FormService } from "../form/form.service";
+import { listBusinessProtoFiles, resolveProtoDir } from "./proto-catalog";
 import { ProtoFormSyncService } from "./proto-form-sync.service";
+
+export interface ProtoDefinition {
+  appId: string;
+  protoId: string;
+  name: string;
+  description: string;
+  protoFile: string;
+}
 
 export interface AppDefinition {
   appId: string;
   name: string;
   description: string;
-  protoFile: string;
+  protos: ProtoDefinition[];
 }
 
 @Injectable()
@@ -21,67 +29,77 @@ export class AppsService {
   ) {}
 
   listApps(): AppDefinition[] {
-    const protoDir = this.resolveProtoDir();
-    if (!protoDir || !existsSync(protoDir)) return [];
+    const protoDir = resolveProtoDir();
+    if (!protoDir) return [];
 
-    return readdirSync(protoDir)
-      .filter((file) => file.endsWith(".proto"))
-      .map((file) => {
-        const appId = file.replace(/\.proto$/i, "");
-        const content = readFileSync(resolve(protoDir, file), "utf-8");
-        const meta = this.extractAppMeta(content);
-        return {
-          appId,
-          name: meta.name || this.toName(appId),
-          description: meta.description || `${this.toName(appId)} application`,
-          protoFile: file
-        };
+    const appMap = new Map<string, AppDefinition>();
+
+    for (const entry of listBusinessProtoFiles(protoDir)) {
+      const content = readFileSync(entry.fullPath, "utf-8");
+      const meta = this.extractAppMeta(content);
+      const protoMeta = this.extractProtoMeta(content);
+      const app = appMap.get(entry.appId) ?? {
+        appId: entry.appId,
+        name: meta.name || this.toName(entry.appId),
+        description: meta.description || `${this.toName(entry.appId)} application`,
+        protos: []
+      };
+
+      app.protos.push({
+        appId: entry.appId,
+        protoId: entry.protoId,
+        name: protoMeta.name || this.toName(entry.protoId),
+        description: protoMeta.description || `${this.toName(entry.protoId)} proto`,
+        protoFile: entry.relativePath
       });
+
+      appMap.set(entry.appId, app);
+    }
+
+    return Array.from(appMap.values()).map((app) => ({
+      ...app,
+      protos: app.protos.sort((a, b) => a.protoId.localeCompare(b.protoId))
+    }));
   }
 
-  async listFormsByApp(tenantId: string, appId: string) {
+  async listFormsByProto(tenantId: string, appId: string, protoId: string) {
     await this.protoFormSyncService.sync(tenantId);
-    return this.formService.listByApp(tenantId, appId);
+    return this.formService.listByAppProto(tenantId, appId, protoId);
   }
 
-  listDataByApp(tenantId: string, appId: string, scope: "active" | "deleted" | "all" = "active") {
-    return this.dataService.listByApp(tenantId, appId, scope);
+  listDataByProto(tenantId: string, appId: string, protoId: string, scope: "active" | "deleted" | "all" = "active") {
+    return this.dataService.listByAppProto(tenantId, appId, protoId, scope);
   }
 
-  createDataInApp(tenantId: string, appId: string, input: { formName?: string; data: Record<string, unknown> }) {
-    return this.dataService.createInApp(tenantId, appId, input);
-  }
-
-  updateDataInApp(
+  createDataInProto(
     tenantId: string,
     appId: string,
+    protoId: string,
+    input: { formName?: string; data: Record<string, unknown> }
+  ) {
+    return this.dataService.createInAppProto(tenantId, appId, protoId, input);
+  }
+
+  updateDataInProto(
+    tenantId: string,
+    appId: string,
+    protoId: string,
     dataId: string,
     input: { formName?: string; data?: Record<string, unknown> }
   ) {
-    return this.dataService.updateById(tenantId, appId, dataId, input);
+    return this.dataService.updateById(tenantId, appId, protoId, dataId, input);
   }
 
-  removeDataInApp(tenantId: string, appId: string, dataId: string) {
-    return this.dataService.removeById(tenantId, appId, dataId);
+  removeDataInProto(tenantId: string, appId: string, protoId: string, dataId: string) {
+    return this.dataService.removeById(tenantId, appId, protoId, dataId);
   }
 
-  getDataByUniqueKey(tenantId: string, appId: string, uniqueValue: string, formName?: string) {
-    return this.dataService.getByUniqueKey(tenantId, appId, uniqueValue, formName);
+  getDataByUniqueKey(tenantId: string, appId: string, protoId: string, uniqueValue: string, formName?: string) {
+    return this.dataService.getByUniqueKey(tenantId, appId, protoId, uniqueValue, formName);
   }
 
-  publishDataToPrd(tenantId: string, appId: string, dataId: string) {
-    return this.dataService.publishToPrd(tenantId, appId, dataId);
-  }
-
-  private resolveProtoDir(): string | null {
-    const candidates = [
-      resolve(process.cwd(), "../../packages/proto-core/proto"),
-      resolve(process.cwd(), "../packages/proto-core/proto"),
-      resolve(process.cwd(), "packages/proto-core/proto")
-    ];
-
-    const hit = candidates.find((dir) => existsSync(dir));
-    return hit ?? null;
+  publishDataToPrd(tenantId: string, appId: string, protoId: string, dataId: string) {
+    return this.dataService.publishToPrd(tenantId, appId, protoId, dataId);
   }
 
   private toName(appId: string): string {
@@ -97,6 +115,12 @@ export class AppsService {
     return { name, description };
   }
 
+  private extractProtoMeta(content: string): { name?: string | undefined; description?: string | undefined } {
+    const name = this.extractStringOption(content, ["proto_name", "scope_name"]);
+    const description = this.extractStringOption(content, ["proto_description", "scope_description"]);
+    return { name, description };
+  }
+
   private extractStringOption(content: string, keys: string[]): string | undefined {
     for (const key of keys) {
       const match = content.match(new RegExp(`option\\s*\\((?:[\\w.]+\\.)?${key}\\)\\s*=\\s*\"((?:\\\\.|[^\"])*)\"\\s*;`, "i"));
@@ -107,5 +131,4 @@ export class AppsService {
     }
     return undefined;
   }
-
 }

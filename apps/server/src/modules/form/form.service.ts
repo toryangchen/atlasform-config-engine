@@ -7,13 +7,17 @@ import { FormEntity } from "./form.schema";
 export class FormService {
   constructor(@InjectModel(FormEntity.name) private readonly formModel: Model<FormEntity>) {}
 
-  async create(tenantId: string, input: { appId: string; formName: string; version: string; schema: Record<string, unknown> }) {
-    const query = { tenantId, appId: input.appId, formName: input.formName };
+  async create(
+    tenantId: string,
+    input: { appId: string; protoId: string; formName: string; version: string; schema: Record<string, unknown> }
+  ) {
+    const query = { tenantId, appId: input.appId, protoId: input.protoId, formName: input.formName };
     const form = await this.formModel
       .findOneAndUpdate(
         query,
         {
           $set: {
+            protoId: input.protoId,
             version: input.version,
             status: "published",
             schema: input.schema
@@ -47,12 +51,12 @@ export class FormService {
     return hit;
   }
 
-  async getCurrentInApp(tenantId: string, appId: string, formName?: string) {
+  async getCurrentInAppProto(tenantId: string, appId: string, protoId: string, formName?: string) {
     const hit = await this.formModel
-      .findOne({ tenantId, appId, ...(formName ? { formName } : {}) })
+      .findOne({ tenantId, appId, ...this.protoFilter(appId, protoId), ...(formName ? { formName } : {}) })
       .sort({ updatedAt: -1, createdAt: -1 })
       .lean();
-    if (!hit) throw new NotFoundException("Form not found in app");
+    if (!hit) throw new NotFoundException("Form not found in proto");
     return hit;
   }
 
@@ -64,12 +68,15 @@ export class FormService {
     return form;
   }
 
-  async keepOnlyByApp(tenantId: string, appId: string, allowedFormNames: string[]) {
-    return this.formModel.deleteMany({ tenantId, appId, formName: { $nin: allowedFormNames } });
+  async keepOnlyByAppProto(tenantId: string, appId: string, protoId: string, allowedFormNames: string[]) {
+    return this.formModel.deleteMany({ tenantId, appId, ...this.protoFilter(appId, protoId), formName: { $nin: allowedFormNames } });
   }
 
-  async listByApp(tenantId: string, appId: string) {
-    const rows = await this.formModel.find({ tenantId, appId }).sort({ updatedAt: -1, createdAt: -1 }).lean();
+  async listByAppProto(tenantId: string, appId: string, protoId: string) {
+    const rows = await this.formModel
+      .find({ tenantId, appId, ...this.protoFilter(appId, protoId) })
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .lean();
     const seen = new Set<string>();
     const deduped = [];
     for (const row of rows) {
@@ -78,5 +85,12 @@ export class FormService {
       deduped.push(row);
     }
     return deduped;
+  }
+
+  private protoFilter(appId: string, protoId: string) {
+    if (protoId !== appId) return { protoId };
+    return {
+      $or: [{ protoId }, { protoId: { $exists: false } }, { protoId: "" }]
+    };
   }
 }

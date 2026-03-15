@@ -9,6 +9,9 @@ export class FormEntity {
   @Prop({ required: true, index: true })
   appId!: string;
 
+  @Prop({ required: true, index: true, default: "" })
+  protoId!: string;
+
   @Prop({ required: true, index: true })
   formName!: string;
 
@@ -24,4 +27,4 @@ export class FormEntity {
 
 export type FormDocument = HydratedDocument<FormEntity>;
 export const FormSchema = SchemaFactory.createForClass(FormEntity);
-FormSchema.index({ tenantId: 1, appId: 1, formName: 1, version: 1 }, { unique: true });
+FormSchema.index({ tenantId: 1, appId: 1, protoId: 1, formName: 1, version: 1 }, { unique: true });

@@ -5,6 +5,10 @@ export class CreateFormDto {
   @IsString()
   appId!: string;
 
+  @IsOptional()
+  @IsString()
+  protoId!: string;
+
   @IsString()
   formName!: string;
 

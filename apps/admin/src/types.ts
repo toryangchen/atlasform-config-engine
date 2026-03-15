@@ -1,13 +1,22 @@
-export interface AppDefinition {
+export interface ProtoDefinition {
   appId: string;
+  protoId: string;
   name: string;
   description: string;
   protoFile: string;
 }
 
+export interface AppDefinition {
+  appId: string;
+  name: string;
+  description: string;
+  protos: ProtoDefinition[];
+}
+
 export interface FormItem {
   _id: string;
   appId: string;
+  protoId: string;
   formName: string;
   version: string;
   status: "draft" | "published";
@@ -18,6 +27,7 @@ export interface FormItem {
 export interface DataItem {
   _id: string;
   appId: string;
+  protoId: string;
   formName: string;
   version: string;
   data: Record<string, unknown>;

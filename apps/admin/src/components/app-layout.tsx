@@ -3,7 +3,7 @@ import { Button, Layout, Menu, Typography } from "antd";
 import { AppstoreAddOutlined } from "@ant-design/icons";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { API_BASE } from "../constants";
-import type { AppDefinition } from "../types";
+import type { AppDefinition, ProtoDefinition } from "../types";
 
 const { Header, Content, Sider } = Layout;
 
@@ -22,15 +22,29 @@ export function AppLayout() {
   }, [loadApps]);
 
   const selectedKey = React.useMemo(() => {
-    const match = location.pathname.match(/^\/apps\/([^/]+)/);
-    if (!match?.[1]) return "";
-    return `app:${match[1]}`;
+    const match = location.pathname.match(/^\/apps\/([^/]+)\/protos\/([^/]+)/);
+    if (!match?.[1] || !match?.[2]) return "";
+    return `proto:${match[1]}:${match[2]}`;
   }, [location.pathname]);
 
-  const menuItems = React.useMemo(() => apps.map((app) => ({ key: `app:${app.appId}`, label: app.name })), [apps]);
+  const menuItems = React.useMemo(
+    () =>
+      apps.map((app) => ({
+        key: `app:${app.appId}`,
+        label: app.name,
+        children: app.protos.map((proto: ProtoDefinition) => ({
+          key: `proto:${app.appId}:${proto.protoId}`,
+          label: proto.name
+        }))
+      })),
+    [apps]
+  );
 
   const onMenuClick = ({ key }: { key: string }) => {
-    if (key.startsWith("app:")) navigate(`/apps/${key.slice(4)}/data`);
+    if (!key.startsWith("proto:")) return;
+    const [, appId, protoId] = key.split(":");
+    if (!appId || !protoId) return;
+    navigate(`/apps/${appId}/protos/${protoId}/data`);
   };
 
   return (

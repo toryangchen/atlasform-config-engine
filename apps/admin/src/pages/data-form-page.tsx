@@ -2,22 +2,25 @@ import React from "react";
 import { Breadcrumb, Button, Card, Empty, Form, Space, message } from "antd";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FormRenderer } from "@lowcode/form-engine";
-import { API_BASE, TENANT, formatAppLabel } from "../constants";
+import { API_BASE, TENANT, formatAppLabel, formatProtoLabel } from "../constants";
 import { useAppData } from "../hooks/use-app-data";
 import { useAppsCatalog } from "../hooks/use-apps-catalog";
 import { extractErrorMessage } from "../lib/http-utils";
 import { hasRenderableSchema, toRuntimeSchema } from "../lib/schema-utils";
 
 export function DataFormPage({ mode }: { mode: "new" | "edit" }) {
-  const { appId = "", dataId = "" } = useParams();
+  const { appId = "", protoId = "", dataId = "" } = useParams();
   const apps = useAppsCatalog();
   const navigate = useNavigate();
   const [api, contextHolder] = message.useMessage();
   const [editorForm] = Form.useForm();
-  const { forms, rows, load } = useAppData(appId, "all");
+  const { forms, rows, load } = useAppData(appId, protoId, "all");
   const [loading, setLoading] = React.useState(false);
 
-  const appLabel = React.useMemo(() => apps.find((app) => app.appId === appId)?.name || formatAppLabel(appId), [apps, appId]);
+  const appDef = React.useMemo(() => apps.find((app) => app.appId === appId), [apps, appId]);
+  const protoDef = React.useMemo(() => appDef?.protos.find((proto) => proto.protoId === protoId), [appDef, protoId]);
+  const appLabel = appDef?.name || formatAppLabel(appId);
+  const protoLabel = protoDef?.name || formatProtoLabel(protoId);
 
   React.useEffect(() => {
     void load();
@@ -77,7 +80,10 @@ export function DataFormPage({ mode }: { mode: "new" | "edit" }) {
 
     setLoading(true);
     try {
-      const url = mode === "new" ? `${API_BASE}/apps/${appId}/data` : `${API_BASE}/apps/${appId}/data/${dataId}`;
+      const url =
+        mode === "new"
+          ? `${API_BASE}/apps/${appId}/protos/${protoId}/data`
+          : `${API_BASE}/apps/${appId}/protos/${protoId}/data/${dataId}`;
       const method = mode === "new" ? "POST" : "PATCH";
       const res = await fetch(url, {
         method,
@@ -91,7 +97,7 @@ export function DataFormPage({ mode }: { mode: "new" | "edit" }) {
       }
 
       api.success(mode === "new" ? "新增成功" : "修改成功");
-      navigate(`/apps/${appId}/data`);
+      navigate(`/apps/${appId}/protos/${protoId}/data`);
     } finally {
       setLoading(false);
     }
@@ -105,7 +111,8 @@ export function DataFormPage({ mode }: { mode: "new" | "edit" }) {
           <Breadcrumb
             items={[
               { title: <Link to="/apps">应用管理</Link> },
-              { title: <Link to={`/apps/${appId}/data`}>{`数据列表(${appLabel || appId})`}</Link> },
+              { title: appLabel || appId },
+              { title: <Link to={`/apps/${appId}/protos/${protoId}/data`}>{`数据列表(${protoLabel || protoId})`}</Link> },
               { title: mode === "new" ? "新增" : "编辑" }
             ]}
           />
@@ -118,7 +125,7 @@ export function DataFormPage({ mode }: { mode: "new" | "edit" }) {
             <FormRenderer form={editorForm} schema={runtimeSchema} />
             <div className="form-inline-actions">
               <Space>
-                <Button onClick={() => navigate(`/apps/${appId}/data`)}>取消</Button>
+                <Button onClick={() => navigate(`/apps/${appId}/protos/${protoId}/data`)}>取消</Button>
                 <Button type="primary" onClick={() => void save()} loading={loading}>
                   保存
                 </Button>

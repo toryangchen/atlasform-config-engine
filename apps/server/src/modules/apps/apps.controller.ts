@@ -12,65 +12,75 @@ export class AppsController {
     return this.appsService.listApps();
   }
 
-  @Get(":appId/forms")
-  listFormsByApp(@Headers("x-tenant-id") tenantId = "demo-tenant", @Param("appId") appId: string) {
-    return this.appsService.listFormsByApp(tenantId, appId);
-  }
-
-  @Get(":appId/data")
-  listDataByApp(
+  @Get(":appId/protos/:protoId/forms")
+  listFormsByProto(
     @Headers("x-tenant-id") tenantId = "demo-tenant",
     @Param("appId") appId: string,
+    @Param("protoId") protoId: string
+  ) {
+    return this.appsService.listFormsByProto(tenantId, appId, protoId);
+  }
+
+  @Get(":appId/protos/:protoId/data")
+  listDataByProto(
+    @Headers("x-tenant-id") tenantId = "demo-tenant",
+    @Param("appId") appId: string,
+    @Param("protoId") protoId: string,
     @Query("scope") scope?: "active" | "deleted" | "all"
   ) {
     const resolved = scope === "deleted" || scope === "all" ? scope : "active";
-    return this.appsService.listDataByApp(tenantId, appId, resolved);
+    return this.appsService.listDataByProto(tenantId, appId, protoId, resolved);
   }
 
-  @Get(":appId/data/unique/:uniqueValue")
+  @Get(":appId/protos/:protoId/data/unique/:uniqueValue")
   getDataByUniqueKey(
     @Headers("x-tenant-id") tenantId = "demo-tenant",
     @Param("appId") appId: string,
+    @Param("protoId") protoId: string,
     @Param("uniqueValue") uniqueValue: string,
     @Query("formName") formName?: string
   ) {
-    return this.appsService.getDataByUniqueKey(tenantId, appId, uniqueValue, formName);
+    return this.appsService.getDataByUniqueKey(tenantId, appId, protoId, uniqueValue, formName);
   }
 
-  @Post(":appId/data")
-  createDataByApp(
+  @Post(":appId/protos/:protoId/data")
+  createDataByProto(
     @Headers("x-tenant-id") tenantId = "demo-tenant",
     @Param("appId") appId: string,
+    @Param("protoId") protoId: string,
     @Body() body: CreateAppDataDto
   ) {
-    return this.appsService.createDataInApp(tenantId, appId, body);
+    return this.appsService.createDataInProto(tenantId, appId, protoId, body);
   }
 
-  @Patch(":appId/data/:dataId")
-  updateDataByApp(
+  @Patch(":appId/protos/:protoId/data/:dataId")
+  updateDataByProto(
     @Headers("x-tenant-id") tenantId = "demo-tenant",
     @Param("appId") appId: string,
+    @Param("protoId") protoId: string,
     @Param("dataId") dataId: string,
     @Body() body: UpdateAppDataDto
   ) {
-    return this.appsService.updateDataInApp(tenantId, appId, dataId, body);
+    return this.appsService.updateDataInProto(tenantId, appId, protoId, dataId, body);
   }
 
-  @Post(":appId/data/:dataId/publish")
+  @Post(":appId/protos/:protoId/data/:dataId/publish")
   publishDataToPrd(
     @Headers("x-tenant-id") tenantId = "demo-tenant",
     @Param("appId") appId: string,
+    @Param("protoId") protoId: string,
     @Param("dataId") dataId: string
   ) {
-    return this.appsService.publishDataToPrd(tenantId, appId, dataId);
+    return this.appsService.publishDataToPrd(tenantId, appId, protoId, dataId);
   }
 
-  @Delete(":appId/data/:dataId")
-  removeDataByApp(
+  @Delete(":appId/protos/:protoId/data/:dataId")
+  removeDataByProto(
     @Headers("x-tenant-id") tenantId = "demo-tenant",
     @Param("appId") appId: string,
+    @Param("protoId") protoId: string,
     @Param("dataId") dataId: string
   ) {
-    return this.appsService.removeDataInApp(tenantId, appId, dataId);
+    return this.appsService.removeDataInProto(tenantId, appId, protoId, dataId);
   }
 }

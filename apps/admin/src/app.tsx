@@ -23,9 +23,9 @@ export function AdminApp() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/apps" replace />} />
             <Route path="/apps" element={<AppsPage />} />
-            <Route path="/apps/:appId/data" element={<DataListPage />} />
-            <Route path="/apps/:appId/data/new" element={<DataFormPage mode="new" />} />
-            <Route path="/apps/:appId/data/:dataId/edit" element={<DataFormPage mode="edit" />} />
+            <Route path="/apps/:appId/protos/:protoId/data" element={<DataListPage />} />
+            <Route path="/apps/:appId/protos/:protoId/data/new" element={<DataFormPage mode="new" />} />
+            <Route path="/apps/:appId/protos/:protoId/data/:dataId/edit" element={<DataFormPage mode="edit" />} />
           </Route>
         </Routes>
       </BrowserRouter>

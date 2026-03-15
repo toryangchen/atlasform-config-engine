@@ -1,9 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectConnection } from "@nestjs/mongoose";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
 import { Connection } from "mongoose";
 import { FormService } from "../form/form.service";
+import { listBusinessProtoFiles, resolveProtoDir } from "./proto-catalog";
 
 interface ProtoField {
   name: string;
@@ -43,48 +43,54 @@ export class ProtoFormSyncService implements OnModuleInit {
   }
 
   async sync(tenantId: string) {
-    const protoDir = this.resolveProtoDir();
-    if (!protoDir || !existsSync(protoDir)) return;
+    const protoDir = resolveProtoDir();
+    if (!protoDir) return;
 
-    const files = readdirSync(protoDir).filter((file) => file.endsWith(".proto"));
-    const syncedByApp = new Map<string, string[]>();
+    const protoFiles = listBusinessProtoFiles(protoDir);
+    const syncedByProto = new Map<string, string[]>();
 
-    for (const file of files) {
-      const appId = file.replace(/\.proto$/i, "");
-      const fullPath = resolve(protoDir, file);
-      const content = readFileSync(fullPath, "utf-8");
+    for (const entry of protoFiles) {
+      const content = readFileSync(entry.fullPath, "utf-8");
 
       try {
-        const schema = this.buildSchemaFromProto(appId, content);
+        const schema = this.buildSchemaFromProto(entry.appId, entry.protoId, content);
         if (!schema) continue;
-        await this.ensureAppCollection(appId);
+        await this.ensureAppCollection(entry.appId);
         await this.formService.create(tenantId, {
-          appId,
+          appId: entry.appId,
+          protoId: entry.protoId,
           formName: schema.formName,
           version: schema.version,
           schema
         });
-        const names = syncedByApp.get(appId) ?? [];
+        const syncKey = `${entry.appId}:${entry.protoId}`;
+        const names = syncedByProto.get(syncKey) ?? [];
         names.push(schema.formName);
-        syncedByApp.set(appId, names);
-        this.logger.log(`Synced proto message: ${appId}/${schema.formName}@${schema.version}`);
+        syncedByProto.set(syncKey, names);
+        this.logger.log(`Synced proto message: ${entry.appId}/${entry.protoId}/${schema.formName}@${schema.version}`);
       } catch (e) {
-        this.logger.error(`Failed to sync ${file}: ${e instanceof Error ? e.message : String(e)}`);
+        this.logger.error(`Failed to sync ${entry.relativePath}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
-    for (const [appId, formNames] of syncedByApp) {
-      await this.formService.keepOnlyByApp(tenantId, appId, formNames);
+    for (const [syncKey, formNames] of syncedByProto) {
+      const [appId, protoId] = syncKey.split(":");
+      if (!appId || !protoId) continue;
+      await this.formService.keepOnlyByAppProto(tenantId, appId, protoId, formNames);
     }
   }
 
-  private buildSchemaFromProto(appId: string, protoText: string): { appId: string; formName: string; version: string; fields: SchemaField[] } | null {
+  private buildSchemaFromProto(
+    appId: string,
+    protoId: string,
+    protoText: string
+  ): { appId: string; protoId: string; formName: string; version: string; fields: SchemaField[] } | null {
     const clean = this.stripBlockComments(protoText);
     const messages = this.parseMessages(clean);
     const enums = this.parseEnums(clean);
     if (messages.size === 0) return null;
 
-    const rootName = this.pickRootMessage(appId, messages);
+    const rootName = this.pickRootMessage(appId, protoId, messages);
     if (!rootName) return null;
     const root = messages.get(rootName)!;
     const fields = root.fields
@@ -92,6 +98,7 @@ export class ProtoFormSyncService implements OnModuleInit {
       .filter((item): item is SchemaField => Boolean(item));
     return {
       appId,
+      protoId,
       formName: root.name,
       version: "1.0.0",
       fields
@@ -411,13 +418,17 @@ export class ProtoFormSyncService implements OnModuleInit {
     /Type$/,
   ];
 
-  private pickRootMessage(appId: string, messages: Map<string, MessageDef>): string | null {
+  private pickRootMessage(appId: string, protoId: string, messages: Map<string, MessageDef>): string | null {
     const messageNames = Array.from(messages.keys());
     if (messageNames.length === 0) return null;
 
-    // Priority 1: Exact match with expected name (appId + "Form")
-    const expect = this.toPascal(appId) + "Form";
-    if (messages.has(expect)) return expect;
+    // Priority 1: Exact match with expected name (protoId + "Form")
+    const protoExpect = this.toPascal(protoId) + "Form";
+    if (messages.has(protoExpect)) return protoExpect;
+
+    // Priority 1.5: appId + "Form" for legacy flat proto files.
+    const appExpect = this.toPascal(appId) + "Form";
+    if (messages.has(appExpect)) return appExpect;
 
     // Priority 2: Common root message names
     if (messages.has("FormSchema")) return "FormSchema";
@@ -429,7 +440,8 @@ export class ProtoFormSyncService implements OnModuleInit {
     }
     // If multiple Form messages, prefer the one matching appId
     if (formMessages.length > 1) {
-      const matched = formMessages.find((name) => name.toLowerCase().includes(appId.toLowerCase()));
+      const matched = formMessages.find((name) => name.toLowerCase().includes(protoId.toLowerCase()))
+        ?? formMessages.find((name) => name.toLowerCase().includes(appId.toLowerCase()));
       if (matched) return matched;
     }
 
@@ -441,7 +453,8 @@ export class ProtoFormSyncService implements OnModuleInit {
       }
       // If multiple, prefer the one matching appId
       if (messagesWithSuffix.length > 1) {
-        const matched = messagesWithSuffix.find((name) => name.toLowerCase().includes(appId.toLowerCase()));
+        const matched = messagesWithSuffix.find((name) => name.toLowerCase().includes(protoId.toLowerCase()))
+          ?? messagesWithSuffix.find((name) => name.toLowerCase().includes(appId.toLowerCase()));
         if (matched) return matched;
       }
     }
@@ -715,15 +728,5 @@ export class ProtoFormSyncService implements OnModuleInit {
     const exists = await db.listCollections({ name: appId }).hasNext();
     if (!exists) await db.createCollection(appId);
     await db.collection(appId).createIndex({ tenantId: 1, updatedAt: -1 });
-  }
-
-  private resolveProtoDir(): string | null {
-    const candidates = [
-      resolve(process.cwd(), "../../packages/proto-core/proto"),
-      resolve(process.cwd(), "../packages/proto-core/proto"),
-      resolve(process.cwd(), "packages/proto-core/proto")
-    ];
-    const hit = candidates.find((dir) => existsSync(dir));
-    return hit ?? null;
   }
 }

@@ -8,3 +8,7 @@ export function formatAppLabel(appId: string): string {
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
 }
+
+export function formatProtoLabel(protoId: string): string {
+  return formatAppLabel(protoId);
+}

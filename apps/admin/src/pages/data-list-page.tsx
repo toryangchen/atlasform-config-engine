@@ -18,7 +18,7 @@ import { SearchOutlined } from "@ant-design/icons";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import ReactDiffViewer from "react-diff-viewer";
 import type { DomainFormSchema } from "@lowcode/shared-types";
-import { API_BASE, TENANT, formatAppLabel } from "../constants";
+import { API_BASE, TENANT, formatAppLabel, formatProtoLabel } from "../constants";
 import { useAppData } from "../hooks/use-app-data";
 import { useAppsCatalog } from "../hooks/use-apps-catalog";
 import { extractErrorMessage, toPrettyJson } from "../lib/http-utils";
@@ -26,12 +26,12 @@ import { formatListCellValue, toDomainSchema } from "../lib/schema-utils";
 import type { DataItem } from "../types";
 
 export function DataListPage() {
-  const { appId = "" } = useParams();
+  const { appId = "", protoId = "" } = useParams();
   const apps = useAppsCatalog();
   const [api, contextHolder] = message.useMessage();
   const navigate = useNavigate();
   const [showDeleted, setShowDeleted] = React.useState(false);
-  const { forms, rows, loading, load } = useAppData(appId, showDeleted ? "deleted" : "active");
+  const { forms, rows, loading, load } = useAppData(appId, protoId, showDeleted ? "deleted" : "active");
   const [query, setQuery] = React.useState("");
   const [publishTarget, setPublishTarget] = React.useState<DataItem | null>(null);
   const [publishing, setPublishing] = React.useState(false);
@@ -45,10 +45,16 @@ export function DataListPage() {
     setPublishPrdChecked(Boolean(publishTarget?.published));
   }, [publishTarget]);
 
-  const appLabel = React.useMemo(() => apps.find((app) => app.appId === appId)?.name || formatAppLabel(appId), [apps, appId]);
+  const appDef = React.useMemo(() => apps.find((app) => app.appId === appId), [apps, appId]);
+  const protoDef = React.useMemo(() => appDef?.protos.find((proto) => proto.protoId === protoId), [appDef, protoId]);
+  const appLabel = appDef?.name || formatAppLabel(appId);
+  const protoLabel = protoDef?.name || formatProtoLabel(protoId);
 
   const remove = async (id: string) => {
-    const res = await fetch(`${API_BASE}/apps/${appId}/data/${id}`, { method: "DELETE", headers: { "x-tenant-id": TENANT } });
+    const res = await fetch(`${API_BASE}/apps/${appId}/protos/${protoId}/data/${id}`, {
+      method: "DELETE",
+      headers: { "x-tenant-id": TENANT }
+    });
     if (!res.ok) {
       api.error(`删除失败: ${await extractErrorMessage(res)}`);
       return;
@@ -59,7 +65,7 @@ export function DataListPage() {
 
   const publish = async (id: string) => {
     setPublishing(true);
-    const res = await fetch(`${API_BASE}/apps/${appId}/data/${id}/publish`, {
+    const res = await fetch(`${API_BASE}/apps/${appId}/protos/${protoId}/data/${id}/publish`, {
       method: "POST",
       headers: { "x-tenant-id": TENANT }
     });
@@ -117,7 +123,7 @@ export function DataListPage() {
       fixed: "right",
       render: (_, row) => (
         <Space>
-          <Button type="link" onClick={() => navigate(`/apps/${appId}/data/${row._id}/edit`)}>
+          <Button type="link" onClick={() => navigate(`/apps/${appId}/protos/${protoId}/data/${row._id}/edit`)}>
             修改
           </Button>
           {!row.deleted && (
@@ -153,7 +159,8 @@ export function DataListPage() {
         <Breadcrumb
           items={[
             { title: <Link to="/apps">应用管理</Link> },
-            { title: `数据列表(${appLabel || appId})` }
+            { title: appLabel || appId },
+            { title: `数据列表(${protoLabel || protoId})` }
           ]}
         />
       </div>
@@ -175,7 +182,7 @@ export function DataListPage() {
             <Button onClick={() => void load()} loading={loading}>
               刷新
             </Button>
-            <Button type="primary" onClick={() => navigate(`/apps/${appId}/data/new`)}>
+            <Button type="primary" onClick={() => navigate(`/apps/${appId}/protos/${protoId}/data/new`)}>
               新增数据
             </Button>
           </Space>

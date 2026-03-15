@@ -9,14 +9,18 @@ export class FormController {
   @Post()
   create(@Headers("x-tenant-id") tenantId = "demo-tenant", @Body() body: CreateFormDto) {
     const appId = body.appId || body.formName;
+    const protoId = body.protoId || appId;
     const schema = {
       ...(body.schema ?? {}),
+      appId,
+      protoId,
       formName: (body.schema as any)?.formName ?? body.formName,
       version: (body.schema as any)?.version ?? body.version,
       fields: Array.isArray((body.schema as any)?.fields) ? (body.schema as any).fields : body.fields
     };
     return this.formService.create(tenantId, {
       appId,
+      protoId,
       formName: body.formName,
       version: body.version,
       schema

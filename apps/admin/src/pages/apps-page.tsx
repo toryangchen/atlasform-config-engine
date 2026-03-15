@@ -1,5 +1,5 @@
 import React from "react";
-import { Breadcrumb, Button, Card, Empty, Input, Space, Table, Typography } from "antd";
+import { Breadcrumb, Button, Card, Empty, Input, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { SearchOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
@@ -38,13 +38,38 @@ export function AppsPage() {
       key: "description",
       render: (value: string) => <Typography.Text type="secondary">{value || "-"}</Typography.Text>
     },
-    { title: "Proto 文件", dataIndex: "protoFile", key: "protoFile" },
+    {
+      title: "Proto 数量",
+      key: "protoCount",
+      width: 100,
+      render: (_, app) => app.protos.length
+    },
+    {
+      title: "Proto 列表",
+      key: "protos",
+      render: (_, app) => (
+        <Space wrap size={[8, 8]}>
+          {app.protos.map((proto) => (
+            <Tag key={`${app.appId}:${proto.protoId}`}>{proto.name}</Tag>
+          ))}
+        </Space>
+      )
+    },
     {
       title: "操作",
       key: "actions",
       width: 140,
       render: (_, app) => (
-        <Button type="primary" ghost onClick={() => navigate(`/apps/${app.appId}/data`)}>
+        <Button
+          type="primary"
+          ghost
+          disabled={app.protos.length < 1}
+          onClick={() => {
+            const firstProto = app.protos[0];
+            if (!firstProto) return;
+            navigate(`/apps/${app.appId}/protos/${firstProto.protoId}/data`);
+          }}
+        >
           进入
         </Button>
       )
@@ -54,7 +79,12 @@ export function AppsPage() {
   const filteredApps = React.useMemo(() => {
     const keyword = query.trim().toLowerCase();
     if (!keyword) return apps;
-    return apps.filter((app) => [app.name, app.description, app.appId, app.protoFile].join(" ").toLowerCase().includes(keyword));
+    return apps.filter((app) =>
+      [app.name, app.description, app.appId, ...app.protos.map((proto) => [proto.name, proto.description, proto.protoId, proto.protoFile].join(" "))]
+        .join(" ")
+        .toLowerCase()
+        .includes(keyword)
+    );
   }, [apps, query]);
 
   return (

@@ -445,7 +445,9 @@ function toSchemaField(field, messages, enums) {
 function parseFileMeta(content) {
   return {
     appName: extractStringOption(content, ["app_name"]),
-    appDescription: extractStringOption(content, ["app_description"])
+    appDescription: extractStringOption(content, ["app_description"]),
+    protoName: extractStringOption(content, ["proto_name", "scope_name"]),
+    protoDescription: extractStringOption(content, ["proto_description", "scope_description"])
   };
 }
 
@@ -457,42 +459,84 @@ function titleize(input) {
     .join(" ");
 }
 
+function listBusinessProtoFiles() {
+  const files = [];
+  const rootEntries = readdirSync(PROTO_DIR, { withFileTypes: true });
+  for (const entry of rootEntries) {
+    if (entry.name.startsWith(".")) continue;
+    if (entry.isDirectory()) {
+      if (entry.name === "common") continue;
+      const appId = entry.name;
+      const childEntries = readdirSync(resolve(PROTO_DIR, appId), { withFileTypes: true });
+      for (const child of childEntries) {
+        if (!child.isFile() || !child.name.endsWith(".proto") || child.name.startsWith(".")) continue;
+        files.push({
+          appId,
+          protoId: child.name.replace(/\.proto$/i, ""),
+          protoFile: `${appId}/${child.name}`,
+          fullPath: resolve(PROTO_DIR, appId, child.name)
+        });
+      }
+      continue;
+    }
+    if (!entry.isFile() || !entry.name.endsWith(".proto")) continue;
+    const appId = entry.name.replace(/\.proto$/i, "");
+    files.push({
+      appId,
+      protoId: appId,
+      protoFile: entry.name,
+      fullPath: resolve(PROTO_DIR, entry.name)
+    });
+  }
+  return files.sort((a, b) => (a.appId === b.appId ? a.protoId.localeCompare(b.protoId) : a.appId.localeCompare(b.appId)));
+}
+
 function buildManifest() {
-  const apps = [];
+  const appMap = new Map();
   const formsByApp = {};
-  const files = readdirSync(PROTO_DIR).filter((f) => f.endsWith(".proto"));
+  const files = listBusinessProtoFiles();
   for (const file of files) {
-    if (file.startsWith("common.")) continue;
-    const appId = file.replace(/\.proto$/i, "");
-    const fullPath = resolve(PROTO_DIR, file);
-    const content = readFileSync(fullPath, "utf-8");
+    const content = readFileSync(file.fullPath, "utf-8");
     const clean = stripBlockComments(content);
     const messages = parseMessages(clean);
     const enums = parseEnums(clean);
     if (!messages.size) continue;
-    const rootName = pickRootMessage(appId, messages);
+    const rootName = pickRootMessage(file.protoId, messages);
     if (!rootName) continue;
     const root = messages.get(rootName);
     if (!root) continue;
     const fields = root.fields.map((f) => toSchemaField(f, messages, enums)).filter(Boolean);
     const fileMeta = parseFileMeta(content);
-    apps.push({
-      appId,
-      name: fileMeta.appName ?? titleize(appId),
-      description: fileMeta.appDescription ?? `Generated from ${file}`,
-      protoFile: file
+    const app = appMap.get(file.appId) ?? {
+      appId: file.appId,
+      name: fileMeta.appName ?? titleize(file.appId),
+      description: fileMeta.appDescription ?? `Generated from ${file.appId}`,
+      protos: []
+    };
+    app.protos.push({
+      appId: file.appId,
+      protoId: file.protoId,
+      name: fileMeta.protoName ?? titleize(file.protoId),
+      description: fileMeta.protoDescription ?? `Generated from ${file.protoFile}`,
+      protoFile: file.protoFile
     });
-    formsByApp[appId] = [
+    appMap.set(file.appId, app);
+    formsByApp[`${file.appId}:${file.protoId}`] = [
       {
-        _id: `generated-${appId}-${root.name}`,
-        appId,
+        _id: `generated-${file.appId}-${file.protoId}-${root.name}`,
+        appId: file.appId,
+        protoId: file.protoId,
         formName: root.name,
         version: "1.0.0",
         status: "published",
-        schema: { fields }
+        schema: { appId: file.appId, protoId: file.protoId, fields }
       }
     ];
   }
+  const apps = [...appMap.values()].map((app) => ({
+    ...app,
+    protos: app.protos.sort((a, b) => a.protoId.localeCompare(b.protoId))
+  }));
   apps.sort((a, b) => a.appId.localeCompare(b.appId));
   return { apps, formsByApp };
 }

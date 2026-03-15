@@ -7,6 +7,7 @@ interface AppDataDocument {
   _id?: Types.ObjectId;
   tenantId: string;
   appId: string;
+  protoId: string;
   formName: string;
   version: string;
   data: Record<string, unknown>;
@@ -50,16 +51,16 @@ export class DataService {
 
   async create(tenantId: string, formName: string, data: Record<string, unknown>) {
     const form = await this.formService.getLatestPublished(tenantId, formName);
-    return this.createInApp(tenantId, form.appId, { formName, data });
+    return this.createInAppProto(tenantId, form.appId, form.protoId, { formName, data });
   }
 
   async listByForm(tenantId: string, formName: string) {
     const form = await this.formService.getLatestPublished(tenantId, formName);
-    return this.listByApp(tenantId, form.appId);
+    return this.listByAppProto(tenantId, form.appId, form.protoId);
   }
 
-  async listByApp(tenantId: string, appId: string, scope: "active" | "deleted" | "all" = "active") {
-    const query: Record<string, unknown> = { tenantId };
+  async listByAppProto(tenantId: string, appId: string, protoId: string, scope: "active" | "deleted" | "all" = "active") {
+    const query: Record<string, unknown> = { tenantId, ...this.protoFilter(appId, protoId) };
     if (scope === "active") query.deletedAt = { $exists: false };
     if (scope === "deleted") query.deletedAt = { $exists: true };
     const rows = (await this.collection(appId)
@@ -69,12 +70,13 @@ export class DataService {
     return rows.map((row) => this.toResponse(appId, row));
   }
 
-  async createInApp(
+  async createInAppProto(
     tenantId: string,
     appId: string,
+    protoId: string,
     input: { formName?: string; data: Record<string, unknown> }
   ) {
-    const form = await this.formService.getCurrentInApp(tenantId, appId, input.formName);
+    const form = await this.formService.getCurrentInAppProto(tenantId, appId, protoId, input.formName);
     this.validateDataBySchema(form.schema as Record<string, unknown>, input.data);
     const uniqueField = this.getUniqueFieldMeta(form.schema as Record<string, unknown>);
     if (uniqueField) {
@@ -82,12 +84,13 @@ export class DataService {
       if (uniqueValue === undefined || uniqueValue === "") {
         throw new BadRequestException(`请填写唯一标识字段：${uniqueField.label}`);
       }
-      await this.ensureUniqueValue(tenantId, appId, uniqueField, uniqueValue);
+      await this.ensureUniqueValue(tenantId, appId, protoId, uniqueField, uniqueValue);
     }
     const now = new Date();
     const payload: AppDataDocument = {
       tenantId,
       appId,
+      protoId,
       formName: form.formName,
       version: form.version,
       data: input.data,
@@ -102,12 +105,13 @@ export class DataService {
   async updateById(
     tenantId: string,
     appId: string,
+    protoId: string,
     dataId: string,
     input: { data?: Record<string, unknown>; formName?: string }
   ) {
     const objectId = this.parseObjectId(dataId);
     const coll = this.collection(appId);
-    const current = await coll.findOne({ _id: objectId, tenantId });
+    const current = await coll.findOne({ _id: objectId, tenantId, ...this.protoFilter(appId, protoId) });
     if (!current) throw new NotFoundException("Data not found");
 
     const patch: Record<string, unknown> = {};
@@ -116,7 +120,7 @@ export class DataService {
     if (input.data) patch.data = input.data;
 
     const targetFormName = input.formName ?? current.formName;
-    const targetForm = await this.formService.getCurrentInApp(tenantId, appId, targetFormName);
+    const targetForm = await this.formService.getCurrentInAppProto(tenantId, appId, protoId, targetFormName);
     this.validateDataBySchema(targetForm.schema as Record<string, unknown>, nextData);
     const uniqueField = this.getUniqueFieldMeta(targetForm.schema as Record<string, unknown>);
     if (uniqueField) {
@@ -129,7 +133,7 @@ export class DataService {
       if (oldValue !== undefined && oldValue !== "" && oldValue !== newValue) {
         throw new BadRequestException(`${uniqueField.label} 创建后不可修改`);
       }
-      await this.ensureUniqueValue(tenantId, appId, uniqueField, newValue, objectId);
+      await this.ensureUniqueValue(tenantId, appId, protoId, uniqueField, newValue, objectId);
     }
 
     // Soft-deleted record can be revived by editing and saving it again.
@@ -154,16 +158,16 @@ export class DataService {
 
     const updateDoc: Record<string, unknown> = { $set: patch };
     if (Object.keys(unsetPatch).length > 0) updateDoc.$unset = unsetPatch;
-    await coll.updateOne({ _id: objectId, tenantId }, updateDoc);
-    const updated = await coll.findOne({ _id: objectId, tenantId });
+    await coll.updateOne({ _id: objectId, tenantId, ...this.protoFilter(appId, protoId) }, updateDoc);
+    const updated = await coll.findOne({ _id: objectId, tenantId, ...this.protoFilter(appId, protoId) });
     if (!updated) throw new NotFoundException("Data not found");
     return this.toResponse(appId, updated as AppDataDocument);
   }
 
-  async removeById(tenantId: string, appId: string, dataId: string) {
+  async removeById(tenantId: string, appId: string, protoId: string, dataId: string) {
     const objectId = this.parseObjectId(dataId);
     const res = await this.collection(appId).updateOne(
-      { _id: objectId, tenantId, deletedAt: { $exists: false } },
+      { _id: objectId, tenantId, ...this.protoFilter(appId, protoId), deletedAt: { $exists: false } },
       {
         $set: { deletedAt: new Date(), updatedAt: new Date() }
       }
@@ -172,15 +176,20 @@ export class DataService {
     return { deletedId: dataId, softDeleted: true };
   }
 
-  async publishToPrd(tenantId: string, appId: string, dataId: string) {
+  async publishToPrd(tenantId: string, appId: string, protoId: string, dataId: string) {
     const objectId = this.parseObjectId(dataId);
     const coll = this.collection(appId);
-    const current = (await coll.findOne({ _id: objectId, tenantId, deletedAt: { $exists: false } })) as AppDataDocument | null;
+    const current = (await coll.findOne({
+      _id: objectId,
+      tenantId,
+      ...this.protoFilter(appId, protoId),
+      deletedAt: { $exists: false }
+    })) as AppDataDocument | null;
     if (!current) throw new NotFoundException("Data not found");
 
     const now = new Date();
     await coll.updateOne(
-      { _id: objectId, tenantId },
+      { _id: objectId, tenantId, ...this.protoFilter(appId, protoId) },
       {
         $set: {
           prdFormName: current.formName,
@@ -191,17 +200,18 @@ export class DataService {
       }
     );
 
-    const updated = (await coll.findOne({ _id: objectId, tenantId })) as AppDataDocument | null;
+    const updated = (await coll.findOne({ _id: objectId, tenantId, ...this.protoFilter(appId, protoId) })) as AppDataDocument | null;
     if (!updated) throw new NotFoundException("Data not found");
     return this.toResponse(appId, updated);
   }
 
-  async getByUniqueKey(tenantId: string, appId: string, uniqueValue: string, formName?: string) {
-    const form = await this.formService.getCurrentInApp(tenantId, appId, formName);
+  async getByUniqueKey(tenantId: string, appId: string, protoId: string, uniqueValue: string, formName?: string) {
+    const form = await this.formService.getCurrentInAppProto(tenantId, appId, protoId, formName);
     const uniqueField = this.getUniqueFieldMeta(form.schema as Record<string, unknown>);
     if (!uniqueField) throw new BadRequestException(`App "${appId}" does not define a unique key field`);
     const hit = (await this.collection(appId).findOne({
       tenantId,
+      ...this.protoFilter(appId, protoId),
       ...(formName ? { formName } : {}),
       deletedAt: { $exists: false },
       [`data.${uniqueField.name}`]: uniqueValue
@@ -224,6 +234,7 @@ export class DataService {
     return {
       _id: String(row._id),
       appId,
+      protoId: row.protoId,
       formName: row.formName,
       version: row.version,
       data: row.data,
@@ -258,12 +269,14 @@ export class DataService {
   private async ensureUniqueValue(
     tenantId: string,
     appId: string,
+    protoId: string,
     field: UniqueFieldMeta,
     value: string,
     excludeId?: Types.ObjectId
   ) {
     const query: Record<string, unknown> = {
       tenantId,
+      ...this.protoFilter(appId, protoId),
       deletedAt: { $exists: false },
       [`data.${field.name}`]: value
     };
@@ -279,6 +292,13 @@ export class DataService {
         ? ((schema.schema as Record<string, unknown>).fields as unknown[])
         : [];
     return fieldsRaw.filter((item): item is FormFieldMeta => Boolean(item) && typeof item === "object");
+  }
+
+  private protoFilter(appId: string, protoId: string) {
+    if (protoId !== appId) return { protoId };
+    return {
+      $or: [{ protoId }, { protoId: { $exists: false } }, { protoId: "" }]
+    };
   }
 
   private validateDataBySchema(schema: Record<string, unknown>, data: Record<string, unknown>) {
