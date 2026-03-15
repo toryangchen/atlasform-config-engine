@@ -390,13 +390,76 @@ export class ProtoFormSyncService implements OnModuleInit {
     return out;
   }
 
+  // Common message name suffixes that indicate root form messages
+  private readonly ROOT_MESSAGE_SUFFIXES = ["Form", "FormSchema", "Schema", "Config", "Settings"];
+
+  // Patterns that indicate non-root messages (typically helper/auxiliary types)
+  private readonly HELPER_MESSAGE_PATTERNS = [
+    /^Validation/,
+    /^Field/,
+    /^Meta$/,
+    /^Options$/,
+    /Preset$/,
+    /^Query$/,
+    /^Filter$/,
+    /^Sort$/,
+    /^Pagination$/,
+    /^Common/,
+    /^Helper/,
+    /^Util/,
+    /Enum$/,
+    /Type$/,
+  ];
+
   private pickRootMessage(appId: string, messages: Map<string, MessageDef>): string | null {
+    const messageNames = Array.from(messages.keys());
+    if (messageNames.length === 0) return null;
+
+    // Priority 1: Exact match with expected name (appId + "Form")
     const expect = this.toPascal(appId) + "Form";
     if (messages.has(expect)) return expect;
+
+    // Priority 2: Common root message names
     if (messages.has("FormSchema")) return "FormSchema";
-    const blacklist = new Set(["ValidationRule", "Field", "ProfileFormPreset"]);
-    const fallback = [...messages.keys()].find((name) => !blacklist.has(name));
-    return fallback ?? null;
+
+    // Priority 3: Messages with "Form" suffix
+    const formMessages = messageNames.filter((name) => name.endsWith("Form"));
+    if (formMessages.length === 1) {
+      return formMessages[0] ?? null;
+    }
+    // If multiple Form messages, prefer the one matching appId
+    if (formMessages.length > 1) {
+      const matched = formMessages.find((name) => name.toLowerCase().includes(appId.toLowerCase()));
+      if (matched) return matched;
+    }
+
+    // Priority 4: Messages with other form-oriented suffixes
+    for (const suffix of this.ROOT_MESSAGE_SUFFIXES.slice(2)) {
+      const messagesWithSuffix = messageNames.filter((name) => name.endsWith(suffix));
+      if (messagesWithSuffix.length === 1) {
+        return messagesWithSuffix[0] ?? null;
+      }
+      // If multiple, prefer the one matching appId
+      if (messagesWithSuffix.length > 1) {
+        const matched = messagesWithSuffix.find((name) => name.toLowerCase().includes(appId.toLowerCase()));
+        if (matched) return matched;
+      }
+    }
+
+    // Priority 5: First non-helper message (filter out helper patterns)
+    const nonHelperMessage = messageNames.find(
+      (name) => !this.HELPER_MESSAGE_PATTERNS.some((pattern) => pattern.test(name))
+    );
+    if (nonHelperMessage) {
+      this.logger.warn(`Using fallback root message: ${nonHelperMessage}. Consider adding explicit naming convention.`);
+      return nonHelperMessage;
+    }
+
+    // Priority: Last resort - first alphabetical message
+    this.logger.warn(
+      `No clear root message found in [${messageNames.join(", ")}]. Using first alphabetical. Consider naming convention.`
+    );
+    return messageNames[0] ?? null;
   }
 
   private toPascal(input: string): string {
@@ -552,9 +615,12 @@ export class ProtoFormSyncService implements OnModuleInit {
       const match = options.match(new RegExp(`\\((?:[\\w.]+\\.)?${key}\\)\\s*=\\s*\"((?:\\\\.|[^\"])*)\"`, "i"));
       if (match && typeof match[1] === "string") {
         const raw = match[1];
+        // Fix: Replace \\ first, then \"
+        // Input: \\\"
+        // Correct: \" (not ")
         return raw
-          .replace(/\\"/g, "\"")
-          .replace(/\\\\/g, "\\");
+          .replace(/\\\\/g, "\\")
+          .replace(/\\"/g, "\"");
       }
     }
     return undefined;
@@ -576,13 +642,43 @@ export class ProtoFormSyncService implements OnModuleInit {
     return rules;
   }
 
+  /**
+   * Validates regex pattern for syntax AND JavaScript semantics.
+   * JavaScript doesn't support some regex features from other languages (e.g., named capture groups in some engines).
+   *
+   * @param pattern - The regex pattern to validate
+   * @returns true if pattern is valid JavaScript regex, false otherwise
+   */
   private isValidRegex(pattern: string): boolean {
     try {
-      // Validate pattern at parse-time to avoid runtime crashes in UI.
-      // eslint-disable-next-line no-new
-      new RegExp(pattern);
+      // Validate syntax
+      const regex = new RegExp(pattern);
+
+      // Test semantics by attempting to compile and test
+      // This catches features like named capture groups that might not work
+      try {
+        regex.test(""); // Test with empty string
+      } catch {
+        return false;
+      }
+
+      // Check for features that are known to cause issues
+      // Note: Most modern JS engines support named capture groups, but we check for obvious issues
+      const problematicPatterns = [
+        /\(\?P<[^>]+\)/,  // Python-style named capture groups (unsupported)
+        /\(\?#.*\)/,       // Comments (unsupported in JS)
+      ];
+
+      for (const problematic of problematicPatterns) {
+        if (problematic.test(pattern)) {
+          this.logger.warn(`Regex pattern contains potentially unsupported feature: ${pattern}`);
+          return false;
+        }
+      }
+
       return true;
-    } catch {
+    } catch (error) {
+      this.logger.warn(`Invalid regex pattern: ${pattern} - ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
   }

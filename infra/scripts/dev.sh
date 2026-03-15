@@ -11,27 +11,24 @@ ensure_mongo() {
     return
   fi
 
-  local mongo_bin=""
-  if command -v mongod >/dev/null 2>&1; then
-    mongo_bin="$(command -v mongod)"
-  elif [ -x "/opt/homebrew/opt/mongodb-community@7.0/bin/mongod" ]; then
-    mongo_bin="/opt/homebrew/opt/mongodb-community@7.0/bin/mongod"
-  fi
-
-  if [ -z "$mongo_bin" ]; then
-    echo "[dev] mongod not found. Install MongoDB Community 7.0 first." >&2
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "[dev] Homebrew not found. Please install and start mongodb-community@7.0 first." >&2
     exit 1
   fi
 
-  mkdir -p "$ROOT_DIR/.mongo-data" "$ROOT_DIR/.mongo-log"
-  "$mongo_bin" \
-    --dbpath "$ROOT_DIR/.mongo-data" \
-    --logpath "$ROOT_DIR/.mongo-log/mongod.log" \
-    --fork \
-    --bind_ip 127.0.0.1 \
-    --port 27017
+  echo "[dev] Starting Homebrew MongoDB service..."
+  brew services start mongodb-community@7.0 >/dev/null
 
-  echo "[dev] MongoDB started on 127.0.0.1:27017"
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if lsof -iTCP:27017 -sTCP:LISTEN -n -P >/dev/null 2>&1; then
+      echo "[dev] Homebrew MongoDB is running on 127.0.0.1:27017"
+      return
+    fi
+    sleep 1
+  done
+
+  echo "[dev] Failed to start Homebrew MongoDB on 127.0.0.1:27017" >&2
+  exit 1
 }
 
 cd "$ROOT_DIR"
