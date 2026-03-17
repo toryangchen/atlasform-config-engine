@@ -1,7 +1,7 @@
 import React from "react";
-import { Breadcrumb, Button, Card, Empty, Input, Space, Table, Tag, Typography } from "antd";
+import { Breadcrumb, Button, Card, Empty, Input, Space, Table, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { SearchOutlined } from "@ant-design/icons";
+import { AppstoreAddOutlined, BranchesOutlined, SearchOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../constants";
 import type { AppDefinition } from "../types";
@@ -26,11 +26,19 @@ export function AppsPage() {
     void load();
   }, [load]);
 
+  const totalProtos = React.useMemo(() => apps.reduce((sum, app) => sum + app.protos.length, 0), [apps]);
+  const densestApp = React.useMemo(() => [...apps].sort((left, right) => right.protos.length - left.protos.length)[0], [apps]);
+
   const columns: ColumnsType<AppDefinition> = [
     {
       title: "应用",
       key: "app",
-      render: (_, app) => <Typography.Text strong>{app.name}</Typography.Text>
+      render: (_, app) => (
+        <div className="primary-cell">
+          <Typography.Text strong>{app.name}</Typography.Text>
+          <Typography.Text type="secondary">{app.appId}</Typography.Text>
+        </div>
+      )
     },
     {
       title: "应用描述",
@@ -41,40 +49,17 @@ export function AppsPage() {
     {
       title: "Proto 数量",
       key: "protoCount",
-      width: 100,
-      render: (_, app) => app.protos.length
-    },
-    {
-      title: "Proto 列表",
-      key: "protos",
-      render: (_, app) => (
-        <Space wrap size={[8, 8]}>
-          {app.protos.map((proto) => (
-            <Tag key={`${app.appId}:${proto.protoId}`}>{proto.name}</Tag>
-          ))}
-        </Space>
-      )
+      width: 120,
+      render: (_, app) => <Typography.Text>{app.protos.length}</Typography.Text>
     },
     {
       title: "操作",
       key: "actions",
-      width: 220,
+      width: 140,
       render: (_, app) => (
         <Space>
-          <Button ghost onClick={() => navigate(`/apps/${app.appId}/protos`)}>
-            Proto管理
-          </Button>
-          <Button
-            type="primary"
-            ghost
-            disabled={app.protos.length < 1}
-            onClick={() => {
-              const firstProto = app.protos[0];
-              if (!firstProto) return;
-              navigate(`/apps/${app.appId}/protos/${firstProto.protoId}/data`);
-            }}
-          >
-            进入
+          <Button type="primary" ghost onClick={() => navigate(`/apps/${app.appId}/protos`)}>
+            查看 Proto
           </Button>
         </Space>
       )
@@ -98,7 +83,27 @@ export function AppsPage() {
         <Breadcrumb items={[{ title: "应用管理" }]} />
       </div>
 
+      <div className="status-strip">
+        <div className="status-strip-item">
+          <AppstoreAddOutlined />
+          <span className="status-strip-label">应用总数</span>
+          <span className="status-strip-value">{apps.length}</span>
+        </div>
+        <div className="status-strip-item">
+          <BranchesOutlined />
+          <span className="status-strip-label">Proto 总数</span>
+          <span className="status-strip-value">{totalProtos}</span>
+        </div>
+        <div className="status-strip-item">
+          <span className="status-strip-label">Proto 最多的应用</span>
+          <span className="status-strip-value">{densestApp ? `${densestApp.name} / ${densestApp.protos.length}` : "-"}</span>
+        </div>
+      </div>
+
       <Card className="panel-card" bordered={false}>
+        <Typography.Paragraph className="page-description list-panel-description">
+          查看所有应用、关联 Proto，以及进入具体数据维护入口。
+        </Typography.Paragraph>
         <div className="list-toolbar">
           <Input
             allowClear
@@ -120,6 +125,7 @@ export function AppsPage() {
           dataSource={filteredApps}
           columns={columns}
           pagination={false}
+          className="data-table"
           locale={{ emptyText: <Empty description="暂无应用，请先添加 proto 文件" /> }}
         />
       </Card>

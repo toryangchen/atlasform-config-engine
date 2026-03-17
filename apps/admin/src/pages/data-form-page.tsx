@@ -1,5 +1,5 @@
 import React from "react";
-import { Breadcrumb, Button, Card, Empty, Form, Space, message } from "antd";
+import { Breadcrumb, Button, Card, Empty, Form, Space, Tag, Typography, message } from "antd";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FormRenderer } from "@lowcode/form-engine";
 import { API_BASE, TENANT, formatAppLabel, formatProtoLabel } from "../constants";
@@ -64,6 +64,8 @@ export function DataFormPage({ mode }: { mode: "new" | "edit" }) {
     };
   }, [selectedForm, mode]);
 
+  const fieldCount = runtimeSchema?.fields.length ?? 0;
+
   const save = async () => {
     if (!resolvedFormName) {
       api.error("当前应用没有可用 form");
@@ -120,6 +122,21 @@ export function DataFormPage({ mode }: { mode: "new" | "edit" }) {
       </div>
 
       <Card className="panel-card" bordered={false}>
+        <div className="form-header-band">
+          <div>
+            <Typography.Title level={4} className="form-title">
+              {mode === "new" ? "新增数据" : "编辑数据"}
+            </Typography.Title>
+            <Typography.Paragraph className="form-subtitle">
+              表单：{resolvedFormName || "未选择"}，字段数：{fieldCount}
+            </Typography.Paragraph>
+          </div>
+          <Space wrap size={[8, 8]}>
+            <Tag>{appLabel}</Tag>
+            <Tag>{protoLabel}</Tag>
+            <Tag color="blue">{mode === "new" ? "新增模式" : "编辑模式"}</Tag>
+          </Space>
+        </div>
         {runtimeSchema ? (
           <>
             <FormRenderer form={editorForm} schema={runtimeSchema} />

@@ -12,10 +12,27 @@ export function AdminApp() {
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: "#0a84ff",
-          colorInfo: "#0a84ff",
-          borderRadius: 14,
-          colorBgContainer: "#ffffff"
+          colorPrimary: "#1457ff",
+          colorInfo: "#1457ff",
+          colorSuccess: "#0f9f6f",
+          colorWarning: "#f08c00",
+          colorTextBase: "#18212f",
+          colorBgContainer: "#ffffff",
+          colorBorderSecondary: "rgba(73, 92, 122, 0.18)",
+          borderRadius: 16,
+          fontFamily: '"SF Pro Display", "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif'
+        },
+        components: {
+          Button: {
+            controlHeight: 40,
+            fontWeight: 600
+          },
+          Card: {
+            bodyPadding: 20
+          },
+          Table: {
+            headerBorderRadius: 14
+          }
         }
       }}
     >

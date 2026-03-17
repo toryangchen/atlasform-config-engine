@@ -1,7 +1,7 @@
 import React from "react";
 import { Breadcrumb, Button, Card, Empty, Input, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { SearchOutlined } from "@ant-design/icons";
+import { BranchesOutlined, SearchOutlined } from "@ant-design/icons";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { formatAppLabel } from "../constants";
 import { useAppsCatalog } from "../hooks/use-apps-catalog";
@@ -20,7 +20,12 @@ export function ProtosPage() {
     {
       title: "Proto",
       key: "proto",
-      render: (_, proto) => <Typography.Text strong>{proto.name}</Typography.Text>
+      render: (_, proto) => (
+        <div className="primary-cell">
+          <Typography.Text strong>{proto.name}</Typography.Text>
+          <Typography.Text type="secondary">{proto.protoId}</Typography.Text>
+        </div>
+      )
     },
     {
       title: "Proto 描述",
@@ -72,7 +77,22 @@ export function ProtosPage() {
         />
       </div>
 
+      <div className="status-strip">
+        <div className="status-strip-item">
+          <span className="status-strip-label">当前应用</span>
+          <span className="status-strip-value">{appLabel}</span>
+        </div>
+        <div className="status-strip-item">
+          <BranchesOutlined />
+          <span className="status-strip-label">Proto 数量</span>
+          <span className="status-strip-value">{app?.protos.length ?? 0}</span>
+        </div>
+      </div>
+
       <Card className="panel-card" bordered={false}>
+        <Typography.Paragraph className="page-description list-panel-description">
+          查看当前应用下的 Proto 定义、文件来源和对应数据入口。
+        </Typography.Paragraph>
         <div className="list-toolbar">
           <Input
             allowClear
@@ -91,6 +111,7 @@ export function ProtosPage() {
           dataSource={filteredProtos}
           columns={columns}
           pagination={false}
+          className="data-table"
           locale={{ emptyText: <Empty description="当前应用下暂无 proto" /> }}
         />
       </Card>

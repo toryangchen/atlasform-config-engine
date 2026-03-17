@@ -1,6 +1,6 @@
 import React from "react";
 import { Button, Layout, Menu, Typography } from "antd";
-import { AppstoreAddOutlined } from "@ant-design/icons";
+import { AppstoreAddOutlined, DatabaseOutlined } from "@ant-design/icons";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { API_BASE } from "../constants";
 import type { AppDefinition, ProtoDefinition } from "../types";
@@ -11,6 +11,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [apps, setApps] = React.useState<AppDefinition[]>([]);
+  const [openKeys, setOpenKeys] = React.useState<string[]>([]);
 
   const loadApps = React.useCallback(async () => {
     const res = await fetch(`${API_BASE}/apps`);
@@ -29,9 +30,9 @@ export function AppLayout() {
     return `proto:${match[1]}:${match[2]}`;
   }, [location.pathname]);
 
-  const openKeys = React.useMemo(() => {
+  React.useEffect(() => {
     const appMatch = location.pathname.match(/^\/apps\/([^/]+)/);
-    return appMatch?.[1] ? [`app:${appMatch[1]}`] : [];
+    setOpenKeys(appMatch?.[1] ? [`app:${appMatch[1]}`] : []);
   }, [location.pathname]);
 
   const menuItems = React.useMemo(
@@ -62,10 +63,17 @@ export function AppLayout() {
   return (
     <Layout className="admin-shell">
       <Header className="admin-header sticky-top">
-        <button type="button" className="header-left header-home-btn" onClick={() => navigate("/apps")}>
-          <div className="brand-dot" />
-          <Typography.Text className="brand-title">AtlasForm Config Engine</Typography.Text>
-        </button>
+        <div className="header-left">
+          <button type="button" className="header-home-btn" onClick={() => navigate("/apps")}>
+            <div className="brand-mark">
+              <DatabaseOutlined />
+            </div>
+            <div>
+              <Typography.Text className="brand-title">AtlasForm Admin</Typography.Text>
+              <Typography.Text className="brand-subtitle">配置与数据管理后台</Typography.Text>
+            </div>
+          </button>
+        </div>
         <div className="header-right">
           <Button type="text" className="header-apps-entry" icon={<AppstoreAddOutlined />} onClick={() => navigate("/apps")}>
             应用管理
@@ -74,14 +82,23 @@ export function AppLayout() {
       </Header>
       <Layout className="admin-body">
         <Sider className="admin-sider" width={252} theme="light" breakpoint="lg" collapsedWidth={0}>
+          <div className="sider-heading">
+            <Typography.Text className="sider-heading-title">应用导航</Typography.Text>
+            <Typography.Text className="sider-heading-meta">{apps.length} 个应用</Typography.Text>
+          </div>
           <Menu
             mode="inline"
             selectedKeys={selectedKey ? [selectedKey] : []}
             openKeys={openKeys}
+            onOpenChange={(keys) => setOpenKeys(keys as string[])}
             items={menuItems}
             onClick={onMenuClick}
             className="app-menu"
           />
+          <div className="sider-footer-note">
+            <Typography.Text className="sider-footer-title">使用说明</Typography.Text>
+            <Typography.Text className="sider-footer-copy">先选择应用，再进入 Proto 查看数据列表和表单。</Typography.Text>
+          </div>
         </Sider>
         <Content className="admin-content">
           <div className="content-wrap">

@@ -166,6 +166,9 @@ export function DataListPage() {
       </div>
 
       <Card className="panel-card" bordered={false}>
+        <Typography.Paragraph className="page-description list-panel-description">
+          统一管理记录、发布状态与删除回收视图。
+        </Typography.Paragraph>
         <div className="list-toolbar">
           <Input
             allowClear
@@ -192,6 +195,7 @@ export function DataListPage() {
           loading={loading}
           dataSource={filteredRows}
           columns={columns}
+          className="data-table"
           scroll={{ x: "max-content" }}
         />
       </Card>
