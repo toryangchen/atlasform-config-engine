@@ -5,6 +5,7 @@ import { AppLayout } from "./components/app-layout";
 import { AppsPage } from "./pages/apps-page";
 import { DataFormPage } from "./pages/data-form-page";
 import { DataListPage } from "./pages/data-list-page";
+import { ProtosPage } from "./pages/protos-page";
 
 export function AdminApp() {
   return (
@@ -23,6 +24,7 @@ export function AdminApp() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/apps" replace />} />
             <Route path="/apps" element={<AppsPage />} />
+            <Route path="/apps/:appId/protos" element={<ProtosPage />} />
             <Route path="/apps/:appId/protos/:protoId/data" element={<DataListPage />} />
             <Route path="/apps/:appId/protos/:protoId/data/new" element={<DataFormPage mode="new" />} />
             <Route path="/apps/:appId/protos/:protoId/data/:dataId/edit" element={<DataFormPage mode="edit" />} />

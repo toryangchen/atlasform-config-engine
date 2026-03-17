@@ -159,7 +159,7 @@ export function DataListPage() {
         <Breadcrumb
           items={[
             { title: <Link to="/apps">应用管理</Link> },
-            { title: appLabel || appId },
+            { title: <Link to={`/apps/${appId}/protos`}>{appLabel || appId}</Link> },
             { title: `数据列表(${protoLabel || protoId})` }
           ]}
         />

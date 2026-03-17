@@ -111,7 +111,7 @@ export function DataFormPage({ mode }: { mode: "new" | "edit" }) {
           <Breadcrumb
             items={[
               { title: <Link to="/apps">应用管理</Link> },
-              { title: appLabel || appId },
+              { title: <Link to={`/apps/${appId}/protos`}>{appLabel || appId}</Link> },
               { title: <Link to={`/apps/${appId}/protos/${protoId}/data`}>{`数据列表(${protoLabel || protoId})`}</Link> },
               { title: mode === "new" ? "新增" : "编辑" }
             ]}

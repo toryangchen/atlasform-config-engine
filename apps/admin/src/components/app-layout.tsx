@@ -22,9 +22,16 @@ export function AppLayout() {
   }, [loadApps]);
 
   const selectedKey = React.useMemo(() => {
+    const appMatch = location.pathname.match(/^\/apps\/([^/]+)\/protos$/);
+    if (appMatch?.[1]) return `app:${appMatch[1]}`;
     const match = location.pathname.match(/^\/apps\/([^/]+)\/protos\/([^/]+)/);
     if (!match?.[1] || !match?.[2]) return "";
     return `proto:${match[1]}:${match[2]}`;
+  }, [location.pathname]);
+
+  const openKeys = React.useMemo(() => {
+    const appMatch = location.pathname.match(/^\/apps\/([^/]+)/);
+    return appMatch?.[1] ? [`app:${appMatch[1]}`] : [];
   }, [location.pathname]);
 
   const menuItems = React.useMemo(
@@ -41,10 +48,15 @@ export function AppLayout() {
   );
 
   const onMenuClick = ({ key }: { key: string }) => {
-    if (!key.startsWith("proto:")) return;
-    const [, appId, protoId] = key.split(":");
-    if (!appId || !protoId) return;
-    navigate(`/apps/${appId}/protos/${protoId}/data`);
+    if (key.startsWith("app:")) {
+      navigate(`/apps/${key.slice(4)}/protos`);
+      return;
+    }
+    if (key.startsWith("proto:")) {
+      const [, appId, protoId] = key.split(":");
+      if (!appId || !protoId) return;
+      navigate(`/apps/${appId}/protos/${protoId}/data`);
+    }
   };
 
   return (
@@ -65,6 +77,7 @@ export function AppLayout() {
           <Menu
             mode="inline"
             selectedKeys={selectedKey ? [selectedKey] : []}
+            openKeys={openKeys}
             items={menuItems}
             onClick={onMenuClick}
             className="app-menu"

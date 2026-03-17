@@ -58,20 +58,25 @@ export function AppsPage() {
     {
       title: "操作",
       key: "actions",
-      width: 140,
+      width: 220,
       render: (_, app) => (
-        <Button
-          type="primary"
-          ghost
-          disabled={app.protos.length < 1}
-          onClick={() => {
-            const firstProto = app.protos[0];
-            if (!firstProto) return;
-            navigate(`/apps/${app.appId}/protos/${firstProto.protoId}/data`);
-          }}
-        >
-          进入
-        </Button>
+        <Space>
+          <Button ghost onClick={() => navigate(`/apps/${app.appId}/protos`)}>
+            Proto管理
+          </Button>
+          <Button
+            type="primary"
+            ghost
+            disabled={app.protos.length < 1}
+            onClick={() => {
+              const firstProto = app.protos[0];
+              if (!firstProto) return;
+              navigate(`/apps/${app.appId}/protos/${firstProto.protoId}/data`);
+            }}
+          >
+            进入
+          </Button>
+        </Space>
       )
     }
   ];
