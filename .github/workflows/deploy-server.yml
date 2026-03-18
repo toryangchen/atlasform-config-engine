@@ -1,0 +1,89 @@
+name: Deploy Server
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "apps/server/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/deploy-server.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-server
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync project to server
+        uses: burnett01/rsync-deployments@7.0.2
+        with:
+          switches: -az --delete --exclude=.git --exclude=node_modules --exclude=.turbo --exclude=apps/*/dist --exclude=packages/shared-types/src/generated
+          path: ./
+          remote_path: /home/ubuntu/apps/atlasform-config-engine/
+          remote_host: ${{ secrets.DEPLOY_HOST }}
+          remote_port: ${{ secrets.DEPLOY_PORT }}
+          remote_user: ${{ secrets.DEPLOY_USER }}
+          remote_key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Build and restart server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          APP_DIR: /home/ubuntu/apps/atlasform-config-engine
+          DEFAULT_MONGO_URI: mongodb://127.0.0.1:27017/lowcode_platform
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: APP_DIR,DEFAULT_MONGO_URI
+          script_stop: true
+          script: |
+            set -e
+            cd "$APP_DIR"
+
+            export MONGO_URI="${MONGO_URI:-$DEFAULT_MONGO_URI}"
+
+            if ! command -v node >/dev/null 2>&1; then
+              echo "node is required on the server"
+              exit 1
+            fi
+
+            if ! command -v pnpm >/dev/null 2>&1; then
+              sudo corepack enable
+              sudo corepack prepare pnpm@10.4.1 --activate
+            fi
+
+            pnpm install --frozen-lockfile
+            pnpm proto:gen
+            pnpm --filter @lowcode/server build
+
+            if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^lowcode-server\.service'; then
+              sudo systemctl restart lowcode-server
+              sudo systemctl status lowcode-server --no-pager
+              exit 0
+            fi
+
+            if command -v pm2 >/dev/null 2>&1; then
+              pm2 describe lowcode-server >/dev/null 2>&1 \
+                && pm2 restart lowcode-server --update-env \
+                || pm2 start apps/server/dist/main.js --name lowcode-server --update-env
+              pm2 save
+              exit 0
+            fi
+
+            pkill -f 'apps/server/dist/main.js' || true
+            nohup env MONGO_URI="$MONGO_URI" node apps/server/dist/main.js >/tmp/lowcode-server.log 2>&1 &
+            sleep 2
+            pgrep -f 'apps/server/dist/main.js' >/dev/null
+            echo "lowcode-server started with nohup, log: /tmp/lowcode-server.log"
