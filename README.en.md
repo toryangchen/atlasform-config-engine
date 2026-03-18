@@ -57,6 +57,59 @@ Default ports:
 - Admin: `http://localhost:5174`
 - Web Runtime Demo: `http://localhost:5173`
 
+## 🗂 Proto Layout Convention
+
+Only two kinds of folders should exist under `packages/proto-core/proto/`:
+
+- regular app folders: each folder represents one `app`
+- `_common/`: shared proto definitions, not treated as an app
+
+Recommended layout:
+
+```txt
+packages/proto-core/proto/
+  _common/
+    options.proto
+  user_info/
+    index.proto
+    user_info.proto
+  profile_app/
+    index.proto
+    profile_app.proto
+```
+
+Rules:
+
+- `appId` comes from the app folder name, such as `user_info/`
+- `index.proto` is used only for app-level metadata such as `app_name` and `app_description`
+- every `.proto` file in the app folder except `index.proto` is treated as a proto scope under that app
+- `protoId` comes from the business proto filename, such as `user_info.proto`
+- shared extensions and reusable definitions live under `_common/`, imported via `import "_common/options.proto";`
+
+For example:
+
+```proto
+option (lowcode.meta.app_name) = "User Info";
+option (lowcode.meta.app_description) = "User profile input application";
+```
+
+belongs in `index.proto`;
+
+```proto
+option (lowcode.meta.proto_name) = "User Info";
+option (lowcode.meta.proto_description) = "User Info proto";
+```
+
+belongs in the business proto file.
+
+After changing proto files or directories, run:
+
+```bash
+pnpm proto:gen
+```
+
+to regenerate shared types and the runtime manifest.
+
 ## 🧰 Common Commands
 
 ```bash
