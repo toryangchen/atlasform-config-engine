@@ -1,10 +1,10 @@
 syntax = "proto3";
 
 package lowcode.profile;
-import "common/options.proto";
+import "_common/options.proto";
 
-option (lowcode.meta.app_name) = "Profile App";
-option (lowcode.meta.app_description) = "单层表单展示基础信息";
+option (lowcode.meta.proto_name) = "Profile App";
+option (lowcode.meta.proto_description) = "Profile App proto";
 
 enum Role {
   ROLE_UNSPECIFIED = 0 [

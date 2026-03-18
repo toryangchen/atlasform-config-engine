@@ -2,8 +2,8 @@
 // versions:
 //   protoc-gen-ts_proto  v2.11.2
 //   protoc               v6.33.4
-// source: common/options.proto
+// source: user_info/index.proto
 
 /* eslint-disable */
 
-export const protobufPackage = "lowcode.meta";
+export const protobufPackage = "lowcode.profile";

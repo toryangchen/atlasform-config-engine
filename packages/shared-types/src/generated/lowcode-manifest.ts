@@ -12,8 +12,8 @@ export const generatedManifest = {
           "appId": "nested_info",
           "protoId": "nested_info",
           "name": "Nested Info",
-          "description": "Generated from nested_info.proto",
-          "protoFile": "nested_info.proto"
+          "description": "Nested Info proto",
+          "protoFile": "nested_info/nested_info.proto"
         }
       ]
     },
@@ -26,8 +26,8 @@ export const generatedManifest = {
           "appId": "profile_app",
           "protoId": "profile_app",
           "name": "Profile App",
-          "description": "Generated from profile_app.proto",
-          "protoFile": "profile_app.proto"
+          "description": "Profile App proto",
+          "protoFile": "profile_app/profile_app.proto"
         }
       ]
     },
@@ -40,8 +40,8 @@ export const generatedManifest = {
           "appId": "user_info",
           "protoId": "user_info",
           "name": "User Info",
-          "description": "Generated from user_info.proto",
-          "protoFile": "user_info.proto"
+          "description": "User Info proto",
+          "protoFile": "user_info/user_info.proto"
         }
       ]
     }

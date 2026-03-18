@@ -63,20 +63,10 @@ const protoTextModules = import.meta.glob("../../../packages/proto-core/proto/**
   import: "default",
   eager: true
 }) as Record<string, string>;
-const protoTextByProto = Object.fromEntries(
+const protoTextByRelativePath = Object.fromEntries(
   Object.entries(protoTextModules).map(([path, raw]) => {
     const normalized = path.split("/proto/")[1] ?? path;
-    const relativePath = normalized.replace(/^\/+/, "");
-    const segments = relativePath.split("/");
-    if (segments.length > 1) {
-      const appId = segments[0] ?? "";
-      const file = segments[segments.length - 1] ?? "";
-      const protoId = file.replace(/\.proto$/i, "");
-      return [`${appId}:${protoId}`, raw];
-    }
-    const file = segments[0] ?? "";
-    const appId = file.replace(/\.proto$/i, "");
-    return [`${appId}:${appId}`, raw];
+    return [normalized.replace(/^\/+/, ""), raw];
   })
 ) as Record<string, string>;
 
@@ -199,30 +189,37 @@ function toRuntimeSchema(form: FormItem | undefined): RuntimeFormSchema | null {
 
 function RuntimeApp() {
   const [form] = Form.useForm();
+  const [selectedAppId, setSelectedAppId] = React.useState(LOCAL_SOURCE.apps[0]?.appId ?? "");
+  const selectedApp = React.useMemo(
+    () => LOCAL_SOURCE.apps.find((app) => app.appId === selectedAppId) ?? null,
+    [selectedAppId]
+  );
   const protoOptions = React.useMemo(
     () =>
-      LOCAL_SOURCE.apps.flatMap((app) =>
-        app.protos.map((proto) => ({
-          key: `${app.appId}:${proto.protoId}`,
-          label: `${app.name} / ${proto.name}`,
-          app,
-          proto
-        }))
-      ),
-    []
+      (selectedApp?.protos ?? []).map((proto) => ({
+        key: `${proto.appId}:${proto.protoId}`,
+        label: proto.name,
+        proto
+      })),
+    [selectedApp]
   );
-  const [selectedProtoKey, setSelectedProtoKey] = React.useState(protoOptions[0]?.key ?? "");
+  const [selectedProtoKey, setSelectedProtoKey] = React.useState("");
   const [jsonPreviewOpen, setJsonPreviewOpen] = React.useState(false);
   const [jsonPreview, setJsonPreview] = React.useState("{}");
+
+  React.useEffect(() => {
+    const nextProto = protoOptions[0]?.key ?? "";
+    setSelectedProtoKey((current) => (protoOptions.some((option) => option.key === current) ? current : nextProto));
+  }, [protoOptions]);
+
   const selectedProtoOption = React.useMemo(
     () => protoOptions.find((option) => option.key === selectedProtoKey) ?? null,
     [protoOptions, selectedProtoKey]
   );
   const forms = selectedProtoKey ? (LOCAL_SOURCE.formsByProto[selectedProtoKey] ?? []) : [];
   const runtimeSchema = React.useMemo(() => toRuntimeSchema(forms[0]), [forms]);
-  const selectedApp = selectedProtoOption?.app ?? null;
   const selectedProto = selectedProtoOption?.proto ?? null;
-  const protoSource = selectedProtoKey ? (protoTextByProto[selectedProtoKey] ?? "") : "";
+  const protoSource = selectedProto ? (protoTextByRelativePath[selectedProto.protoFile] ?? "") : "";
   const protoLines = React.useMemo(() => (protoSource ? protoSource.split("\n") : []), [protoSource]);
   const NAV_HEIGHT = 64;
 
@@ -262,13 +259,22 @@ function RuntimeApp() {
               <Typography.Title level={3} style={{ margin: 0 }}>
                 AtlasForm Config Engine (Runtime Demo)
               </Typography.Title>
-              <AntdSelect
-                style={{ minWidth: 280 }}
-                value={selectedProtoKey || null}
-                options={protoOptions.map((option) => ({ label: option.label, value: option.key }))}
-                placeholder="Select proto"
-                onChange={(v) => setSelectedProtoKey(v)}
-              />
+              <Space size={12}>
+                <AntdSelect
+                  style={{ minWidth: 240 }}
+                  value={selectedAppId || null}
+                  options={LOCAL_SOURCE.apps.map((app) => ({ label: `${app.name} (${app.appId})`, value: app.appId }))}
+                  placeholder="Select app"
+                  onChange={(value) => setSelectedAppId(value)}
+                />
+                <AntdSelect
+                  style={{ minWidth: 220 }}
+                  value={selectedProtoKey || null}
+                  options={protoOptions.map((option) => ({ label: option.label, value: option.key }))}
+                  placeholder="Select proto"
+                  onChange={(value) => setSelectedProtoKey(value)}
+                />
+              </Space>
             </Space>
           </div>
         </div>
@@ -280,6 +286,29 @@ function RuntimeApp() {
           style={{ width: "100%", maxWidth: 1400, margin: "0 auto" }}
         />
         <div style={{ width: "100%", maxWidth: 1400, margin: "0 auto" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 16,
+            marginBottom: 16
+          }}
+        >
+          <Card style={{ boxShadow: "0 10px 24px rgba(15, 23, 42, 0.08)" }}>
+            <Typography.Text type="secondary">当前应用</Typography.Text>
+            <Typography.Title level={4} style={{ margin: "8px 0 4px" }}>
+              {selectedApp?.name ?? "-"}
+            </Typography.Title>
+            <Typography.Text>{selectedApp?.description ?? "请选择应用"}</Typography.Text>
+          </Card>
+          <Card style={{ boxShadow: "0 10px 24px rgba(15, 23, 42, 0.08)" }}>
+            <Typography.Text type="secondary">当前 Proto Scope</Typography.Text>
+            <Typography.Title level={4} style={{ margin: "8px 0 4px" }}>
+              {selectedProto?.name ?? "-"}
+            </Typography.Title>
+            <Typography.Text>{selectedProto?.description ?? "请选择 proto"}</Typography.Text>
+          </Card>
+        </div>
         <div
           style={{
             display: "grid",
@@ -298,34 +327,7 @@ function RuntimeApp() {
                 <Empty description="No proto source found for selected proto" />
               </div>
             ) : (
-              <div
-                style={{
-                  background: "#0f172a",
-                  color: "#e2e8f0",
-                  borderTop: "1px solid #1e293b",
-                  borderBottomLeftRadius: 8,
-                  borderBottomRightRadius: 8
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "56px 1fr",
-                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                    fontSize: 12,
-                    lineHeight: 1.7
-                  }}
-                >
-                  <div style={{ background: "#0b1220", color: "#64748b", textAlign: "right", padding: "14px 10px", userSelect: "none" }}>
-                    {protoLines.map((_, index) => (
-                      <div key={`line-no-${index + 1}`}>{index + 1}</div>
-                    ))}
-                  </div>
-                  <pre style={{ margin: 0, padding: "14px 16px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                    <code>{protoSource}</code>
-                  </pre>
-                </div>
-              </div>
+              <SourcePreview lines={protoLines} source={protoSource} />
             )}
           </Card>
 
@@ -374,6 +376,39 @@ function RuntimeApp() {
           </pre>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function SourcePreview({ lines, source }: { lines: string[]; source: string }) {
+  return (
+    <div
+      style={{
+        background: "#0f172a",
+        color: "#e2e8f0",
+        borderTop: "1px solid #1e293b",
+        borderBottomLeftRadius: 8,
+        borderBottomRightRadius: 8
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "56px 1fr",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          fontSize: 12,
+          lineHeight: 1.7
+        }}
+      >
+        <div style={{ background: "#0b1220", color: "#64748b", textAlign: "right", padding: "14px 10px", userSelect: "none" }}>
+          {lines.map((_, index) => (
+            <div key={`line-no-${index + 1}`}>{index + 1}</div>
+          ))}
+        </div>
+        <pre style={{ margin: 0, padding: "14px 16px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+          <code>{source}</code>
+        </pre>
+      </div>
     </div>
   );
 }

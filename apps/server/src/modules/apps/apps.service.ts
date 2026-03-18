@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { readFileSync } from "node:fs";
 import { DataService } from "../data/data.service";
 import { FormService } from "../form/form.service";
-import { listBusinessProtoFiles, resolveProtoDir } from "./proto-catalog";
+import { listBusinessProtoFiles, listProtoApps, resolveProtoDir } from "./proto-catalog";
 import { ProtoFormSyncService } from "./proto-form-sync.service";
 
 export interface ProtoDefinition {
@@ -32,18 +32,26 @@ export class AppsService {
     const protoDir = resolveProtoDir();
     if (!protoDir) return [];
 
-    const appMap = new Map<string, AppDefinition>();
+    const appMap = new Map<string, AppDefinition>(
+      listProtoApps(protoDir).map((app) => {
+        const meta = app.indexPath ? this.extractAppMeta(readFileSync(app.indexPath, "utf-8")) : {};
+        return [
+          app.appId,
+          {
+            appId: app.appId,
+            name: meta.name || this.toName(app.appId),
+            description: meta.description || `${this.toName(app.appId)} application`,
+            protos: []
+          }
+        ];
+      })
+    );
 
     for (const entry of listBusinessProtoFiles(protoDir)) {
       const content = readFileSync(entry.fullPath, "utf-8");
-      const meta = this.extractAppMeta(content);
       const protoMeta = this.extractProtoMeta(content);
-      const app = appMap.get(entry.appId) ?? {
-        appId: entry.appId,
-        name: meta.name || this.toName(entry.appId),
-        description: meta.description || `${this.toName(entry.appId)} application`,
-        protos: []
-      };
+      const app = appMap.get(entry.appId);
+      if (!app) continue;
 
       app.protos.push({
         appId: entry.appId,

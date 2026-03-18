@@ -1,4 +1,4 @@
-import { Dirent, existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 
 export interface ProtoCatalogEntry {
@@ -7,7 +7,13 @@ export interface ProtoCatalogEntry {
   fileName: string;
   fullPath: string;
   relativePath: string;
-  legacyFlat: boolean;
+}
+
+export interface ProtoAppEntry {
+  appId: string;
+  dirPath: string;
+  indexPath: string | null;
+  relativeIndexPath: string | null;
 }
 
 export function resolveProtoDir(): string | null {
@@ -21,49 +27,42 @@ export function resolveProtoDir(): string | null {
   return hit ?? null;
 }
 
+export function listProtoApps(protoDir: string): ProtoAppEntry[] {
+  const entries = readdirSync(protoDir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isDirectory() && !isHidden(entry.name) && !entry.name.startsWith("_"))
+    .map((entry) => {
+      const dirPath = resolve(protoDir, entry.name);
+      const indexPath = resolve(dirPath, "index.proto");
+      return {
+        appId: entry.name,
+        dirPath,
+        indexPath: existsSync(indexPath) ? indexPath : null,
+        relativeIndexPath: existsSync(indexPath) ? relative(protoDir, indexPath) : null
+      };
+    })
+    .sort((a, b) => a.appId.localeCompare(b.appId));
+}
+
 export function listBusinessProtoFiles(protoDir: string): ProtoCatalogEntry[] {
-  const entries: ProtoCatalogEntry[] = [];
-  const rootEntries = readdirSync(protoDir, { withFileTypes: true });
+  const files: ProtoCatalogEntry[] = [];
 
-  for (const entry of rootEntries) {
-    if (isHidden(entry.name)) continue;
-
-    if (entry.isDirectory()) {
-      if (entry.name === "common") continue;
-      const appId = entry.name;
-      const childEntries = readdirSync(resolve(protoDir, appId), { withFileTypes: true });
-      for (const child of childEntries) {
-        if (!child.isFile() || !child.name.endsWith(".proto") || isHidden(child.name)) continue;
-        const fullPath = resolve(protoDir, appId, child.name);
-        entries.push({
-          appId,
-          protoId: basename(child.name, ".proto"),
-          fileName: child.name,
-          fullPath,
-          relativePath: relative(protoDir, fullPath),
-          legacyFlat: false
-        });
-      }
-      continue;
+  for (const app of listProtoApps(protoDir)) {
+    const childEntries = readdirSync(app.dirPath, { withFileTypes: true });
+    for (const child of childEntries) {
+      if (!child.isFile() || !child.name.endsWith(".proto") || isHidden(child.name) || child.name === "index.proto") continue;
+      const fullPath = resolve(app.dirPath, child.name);
+      files.push({
+        appId: app.appId,
+        protoId: basename(child.name, ".proto"),
+        fileName: child.name,
+        fullPath,
+        relativePath: relative(protoDir, fullPath)
+      });
     }
-
-    if (!entry.isFile() || !entry.name.endsWith(".proto")) continue;
-    const appId = basename(entry.name, ".proto");
-    const fullPath = resolve(protoDir, entry.name);
-    entries.push({
-      appId,
-      protoId: appId,
-      fileName: entry.name,
-      fullPath,
-      relativePath: relative(protoDir, fullPath),
-      legacyFlat: true
-    });
   }
 
-  return entries.sort((a, b) => {
-    if (a.appId !== b.appId) return a.appId.localeCompare(b.appId);
-    return a.protoId.localeCompare(b.protoId);
-  });
+  return files.sort((a, b) => (a.appId === b.appId ? a.protoId.localeCompare(b.protoId) : a.appId.localeCompare(b.appId)));
 }
 
 function isHidden(name: string) {

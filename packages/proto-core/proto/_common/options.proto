@@ -7,6 +7,8 @@ import "google/protobuf/descriptor.proto";
 extend google.protobuf.FileOptions {
   string app_name = 51201;
   string app_description = 51202;
+  string proto_name = 51203;
+  string proto_description = 51204;
 }
 
 extend google.protobuf.FieldOptions {

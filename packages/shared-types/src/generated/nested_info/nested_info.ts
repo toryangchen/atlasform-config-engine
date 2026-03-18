@@ -2,7 +2,7 @@
 // versions:
 //   protoc-gen-ts_proto  v2.11.2
 //   protoc               v6.33.4
-// source: nested_info.proto
+// source: nested_info/nested_info.proto
 
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";

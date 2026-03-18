@@ -459,40 +459,54 @@ function titleize(input) {
     .join(" ");
 }
 
+function listProtoApps() {
+  const rootEntries = readdirSync(PROTO_DIR, { withFileTypes: true });
+  return rootEntries
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith(".") && !entry.name.startsWith("_"))
+    .map((entry) => {
+      const dirPath = resolve(PROTO_DIR, entry.name);
+      const indexPath = resolve(dirPath, "index.proto");
+      return {
+        appId: entry.name,
+        dirPath,
+        indexPath
+      };
+    })
+    .sort((a, b) => a.appId.localeCompare(b.appId));
+}
+
 function listBusinessProtoFiles() {
   const files = [];
-  const rootEntries = readdirSync(PROTO_DIR, { withFileTypes: true });
-  for (const entry of rootEntries) {
-    if (entry.name.startsWith(".")) continue;
-    if (entry.isDirectory()) {
-      if (entry.name === "common") continue;
-      const appId = entry.name;
-      const childEntries = readdirSync(resolve(PROTO_DIR, appId), { withFileTypes: true });
-      for (const child of childEntries) {
-        if (!child.isFile() || !child.name.endsWith(".proto") || child.name.startsWith(".")) continue;
-        files.push({
-          appId,
-          protoId: child.name.replace(/\.proto$/i, ""),
-          protoFile: `${appId}/${child.name}`,
-          fullPath: resolve(PROTO_DIR, appId, child.name)
-        });
-      }
-      continue;
+  for (const app of listProtoApps()) {
+    const childEntries = readdirSync(app.dirPath, { withFileTypes: true });
+    for (const child of childEntries) {
+      if (!child.isFile() || !child.name.endsWith(".proto") || child.name.startsWith(".") || child.name === "index.proto") continue;
+      files.push({
+        appId: app.appId,
+        protoId: child.name.replace(/\.proto$/i, ""),
+        protoFile: `${app.appId}/${child.name}`,
+        fullPath: resolve(app.dirPath, child.name)
+      });
     }
-    if (!entry.isFile() || !entry.name.endsWith(".proto")) continue;
-    const appId = entry.name.replace(/\.proto$/i, "");
-    files.push({
-      appId,
-      protoId: appId,
-      protoFile: entry.name,
-      fullPath: resolve(PROTO_DIR, entry.name)
-    });
   }
   return files.sort((a, b) => (a.appId === b.appId ? a.protoId.localeCompare(b.protoId) : a.appId.localeCompare(b.appId)));
 }
 
 function buildManifest() {
-  const appMap = new Map();
+  const appMap = new Map(
+    listProtoApps().map((app) => {
+      const meta = parseFileMeta(readFileSync(app.indexPath, "utf-8"));
+      return [
+        app.appId,
+        {
+          appId: app.appId,
+          name: meta.appName ?? titleize(app.appId),
+          description: meta.appDescription ?? `Generated from ${app.appId}`,
+          protos: []
+        }
+      ];
+    })
+  );
   const formsByApp = {};
   const files = listBusinessProtoFiles();
   for (const file of files) {
@@ -507,12 +521,8 @@ function buildManifest() {
     if (!root) continue;
     const fields = root.fields.map((f) => toSchemaField(f, messages, enums)).filter(Boolean);
     const fileMeta = parseFileMeta(content);
-    const app = appMap.get(file.appId) ?? {
-      appId: file.appId,
-      name: fileMeta.appName ?? titleize(file.appId),
-      description: fileMeta.appDescription ?? `Generated from ${file.appId}`,
-      protos: []
-    };
+    const app = appMap.get(file.appId);
+    if (!app) continue;
     app.protos.push({
       appId: file.appId,
       protoId: file.protoId,
@@ -520,7 +530,6 @@ function buildManifest() {
       description: fileMeta.protoDescription ?? `Generated from ${file.protoFile}`,
       protoFile: file.protoFile
     });
-    appMap.set(file.appId, app);
     formsByApp[`${file.appId}:${file.protoId}`] = [
       {
         _id: `generated-${file.appId}-${file.protoId}-${root.name}`,
