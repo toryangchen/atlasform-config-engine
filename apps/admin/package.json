@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
+    "build:pages": "VITE_BASE_PATH=/admin/ VITE_API_BASE=https://api.toryang.cc tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo 'lint reserved for admin'"

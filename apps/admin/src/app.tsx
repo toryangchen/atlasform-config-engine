@@ -1,6 +1,6 @@
 import React from "react";
 import { ConfigProvider } from "antd";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/app-layout";
 import { AppsPage } from "./pages/apps-page";
 import { DataFormPage } from "./pages/data-form-page";
@@ -36,7 +36,7 @@ export function AdminApp() {
         }
       }}
     >
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/apps" replace />} />
@@ -47,7 +47,7 @@ export function AdminApp() {
             <Route path="/apps/:appId/protos/:protoId/data/:dataId/edit" element={<DataFormPage mode="edit" />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </ConfigProvider>
   );
 }

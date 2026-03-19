@@ -1,16 +1,18 @@
-name: Deploy Web to GitHub Pages
+name: Deploy Frontends to GitHub Pages
 
 on:
   push:
     branches: ["main"]
     paths:
+      - "apps/admin/**"
       - "apps/web/**"
       - "packages/**"
+      - "scripts/build-github-pages-site.sh"
       - "pnpm-lock.yaml"
       - "package.json"
       - "pnpm-workspace.yaml"
       - "turbo.json"
-      - ".github/workflows/deploy-web-pages.yml"
+      - ".github/workflows/deploy-pages-site.yml"
   workflow_dispatch:
 
 permissions:
@@ -19,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: "github-pages-site"
   cancel-in-progress: true
 
 jobs:
@@ -39,16 +41,13 @@ jobs:
         with:
           package_json_file: package.json
 
-      - name: Install deps
-        run: pnpm install --frozen-lockfile
-
-      - name: Build web
-        run: pnpm --filter @lowcode/web build
+      - name: Build combined site
+        run: ./scripts/build-github-pages-site.sh
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/web/dist
+          path: site-dist
 
   deploy:
     needs: build
