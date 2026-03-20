@@ -14,7 +14,7 @@ export function AppLayout() {
   const [openKeys, setOpenKeys] = React.useState<string[]>([]);
 
   const loadApps = React.useCallback(async () => {
-    const res = await fetch(`${API_BASE}/apps`);
+    const res = await fetch(API_BASE);
     setApps((await res.json()) as AppDefinition[]);
   }, []);
 

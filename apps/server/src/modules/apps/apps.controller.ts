@@ -3,7 +3,7 @@ import { CreateAppDataDto } from "./dto/create-app-data.dto";
 import { UpdateAppDataDto } from "./dto/update-app-data.dto";
 import { AppsService } from "./apps.service";
 
-@Controller("apps")
+@Controller("config")
 export class AppsController {
   constructor(private readonly appsService: AppsService) {}
 

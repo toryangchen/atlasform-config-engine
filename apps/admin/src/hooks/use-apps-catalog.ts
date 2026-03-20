@@ -7,7 +7,7 @@ export function useAppsCatalog() {
 
   React.useEffect(() => {
     const run = async () => {
-      const res = await fetch(`${API_BASE}/apps`);
+      const res = await fetch(API_BASE);
       setApps((await res.json()) as AppDefinition[]);
     };
     void run();

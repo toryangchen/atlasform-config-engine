@@ -51,7 +51,7 @@ export function DataListPage() {
   const protoLabel = protoDef?.name || formatProtoLabel(protoId);
 
   const remove = async (id: string) => {
-    const res = await fetch(`${API_BASE}/apps/${appId}/protos/${protoId}/data/${id}`, {
+    const res = await fetch(`${API_BASE}/${appId}/protos/${protoId}/data/${id}`, {
       method: "DELETE",
       headers: { "x-tenant-id": TENANT }
     });
@@ -65,7 +65,7 @@ export function DataListPage() {
 
   const publish = async (id: string) => {
     setPublishing(true);
-    const res = await fetch(`${API_BASE}/apps/${appId}/protos/${protoId}/data/${id}/publish`, {
+    const res = await fetch(`${API_BASE}/${appId}/protos/${protoId}/data/${id}/publish`, {
       method: "POST",
       headers: { "x-tenant-id": TENANT }
     });

@@ -84,8 +84,8 @@ export function DataFormPage({ mode }: { mode: "new" | "edit" }) {
     try {
       const url =
         mode === "new"
-          ? `${API_BASE}/apps/${appId}/protos/${protoId}/data`
-          : `${API_BASE}/apps/${appId}/protos/${protoId}/data/${dataId}`;
+          ? `${API_BASE}/${appId}/protos/${protoId}/data`
+          : `${API_BASE}/${appId}/protos/${protoId}/data/${dataId}`;
       const method = mode === "new" ? "POST" : "PATCH";
       const res = await fetch(url, {
         method,

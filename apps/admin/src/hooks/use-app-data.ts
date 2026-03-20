@@ -12,8 +12,8 @@ export function useAppData(appId: string, protoId: string, scope: DataScope = "a
     setLoading(true);
     try {
       const [formsRes, dataRes] = await Promise.all([
-        fetch(`${API_BASE}/apps/${appId}/protos/${protoId}/forms`, { headers: { "x-tenant-id": TENANT } }),
-        fetch(`${API_BASE}/apps/${appId}/protos/${protoId}/data?scope=${scope}`, { headers: { "x-tenant-id": TENANT } })
+        fetch(`${API_BASE}/${appId}/protos/${protoId}/forms`, { headers: { "x-tenant-id": TENANT } }),
+        fetch(`${API_BASE}/${appId}/protos/${protoId}/data?scope=${scope}`, { headers: { "x-tenant-id": TENANT } })
       ]);
       setForms((await formsRes.json()) as FormItem[]);
       setRows((await dataRes.json()) as DataItem[]);

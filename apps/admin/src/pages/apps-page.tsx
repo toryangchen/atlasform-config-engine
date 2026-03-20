@@ -15,7 +15,7 @@ export function AppsPage() {
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/apps`);
+      const res = await fetch(API_BASE);
       setApps((await res.json()) as AppDefinition[]);
     } finally {
       setLoading(false);
