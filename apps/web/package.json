@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
-    "build:pages": "VITE_BASE_PATH=/runtime/ sh -c 'tsc -p tsconfig.json && vite build'",
+    "build:pages": "VITE_BASE_PATH=/ sh -c 'tsc -p tsconfig.json && vite build'",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo 'lint reserved for web'"
